@@ -9,8 +9,7 @@ routes = [
 APP_NAME = "cloud-blog-lite-worker"
 COOKIE_NAME = "cloud_blog_token"
 BACKUP_EMAIL_TO = "1876444302@qq.com"
-# Configure this after verifying a sender domain/address in Resend, for example:
-# BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@your-domain.com>"
+BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@edu.zljcloud.com>"
 
 [triggers]
 # Cloudflare Cron uses UTC. 17:00 UTC equals 01:00 Beijing time (UTC+8).

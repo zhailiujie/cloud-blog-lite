@@ -220,7 +220,12 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 - 已执行 `pnpm typecheck:worker`，Worker 类型检查通过；
 - 已执行 `pnpm deploy:worker` 部署备份功能成功，版本 ID 为 `<WORKER_VERSION_ID>`；
 - 已由用户在浏览器控制台手动调用 `POST /api/admin/backups/run`，返回 `code: 0` 且 `data.ok: true`；
-- 已在 Cloudflare R2 `cloud-blog-lite-files/backups/d1/daily/2026-05-24/` 确认生成压缩备份文件 `cloud-blog-lite-d1-2026-05-24T12-10-14Z.json.gz`；
+- 已在 Cloudflare R2 `cloud-blog-lite-files/backups/d1/daily/YYYY-MM-DD/` 确认生成压缩备份文件；
+- 已确认旧 MySQL SQL 文件存在，并仅迁移 `category` 与 `site` 两张表；
+- 已从旧 SQL 解析出 `category` 35 条、`site` 46 条，且站点引用的分类均存在；
+- 已按现有 D1 schema 生成本地临时导入 SQL，将 `site.account` 迁移到 `sites.account`，将 `site.password` 使用生产 `SITE_SECRET` 加密后迁移到 `sites.password_cipher`；
+- 已执行远程 D1 导入，最终核对 `categories=35`、`sites=46`、有账号的站点 13 条、有加密密码的站点 13 条；
+- 旧 SQL、中间 JSON、导入 SQL、`SITE_SECRET` 临时文件均位于本地 `tmp/`，已被 `.gitignore` 忽略，不提交 Git；
 - 如本地启动 Worker 出现 `workerd/Miniflare access violation`，优先确认已重新执行 `pnpm install` 并使用新版 Wrangler；
 - 如果新版 Wrangler 仍然报 `There was an access violation in the runtime`，需要安装或更新 Microsoft Visual C++ Redistributable x64。
 
@@ -265,12 +270,12 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
   - [x] 18.4 实现 R2 文件清单备份
   - [x] 18.5 编写恢复文档
   - [ ] 18.6 验证可以从备份恢复核心数据
-- [ ] 19. 迁移旧数据
-  - [ ] 19.1 解压并确认旧 MySQL 数据
-  - [ ] 19.2 编写分类数据迁移脚本
-  - [ ] 19.3 编写站点数据迁移脚本
-  - [ ] 19.4 编写用户数据迁移脚本或重置密码方案
-  - [ ] 19.5 导入远程 D1 并人工核对
+- [x] 19. 迁移旧数据
+  - [x] 19.1 解压并确认旧 MySQL 数据
+  - [x] 19.2 编写分类数据迁移脚本
+  - [x] 19.3 编写站点数据迁移脚本
+  - [x] 19.4 编写站点账号密码加密迁移方案
+  - [x] 19.5 导入远程 D1 并人工核对
 
 本地初始化 admin 的调用方式：
 

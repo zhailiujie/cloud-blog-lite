@@ -8,7 +8,7 @@ routes = [
 [vars]
 APP_NAME = "cloud-blog-lite-worker"
 COOKIE_NAME = "cloud_blog_token"
-BACKUP_EMAIL_TO = "**@**.com"
+BACKUP_EMAIL_TO = "**.gmail.com"
 BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@**.com>"
 
 [triggers]

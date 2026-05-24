@@ -215,6 +215,8 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 - 已新增备份与恢复文档 `docs/backup-and-restore.md`；
 - 已执行 `pnpm typecheck:worker`，Worker 类型检查通过；
 - 已执行 `pnpm deploy:worker` 部署备份功能成功，版本 ID 为 `fc14b4ab-3a81-4d92-a7a6-66847ed4c641`；
+- 已由用户在浏览器控制台手动调用 `POST /api/admin/backups/run`，返回 `code: 0` 且 `data.ok: true`；
+- 已在 Cloudflare R2 `cloud-blog-lite-files/backups/d1/daily/2026-05-24/` 确认生成压缩备份文件 `cloud-blog-lite-d1-2026-05-24T12-10-14Z.json.gz`；
 - 如本地启动 Worker 出现 `workerd/Miniflare access violation`，优先确认已重新执行 `pnpm install` 并使用新版 Wrangler；
 - 如果新版 Wrangler 仍然报 `There was an access violation in the runtime`，需要安装或更新 Microsoft Visual C++ Redistributable x64。
 

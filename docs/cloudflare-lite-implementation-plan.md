@@ -212,8 +212,8 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 - 已实现 R2 对象清单快照，备份 JSON 中包含 `r2_objects`；
 - 已配置 Cloudflare Cron Trigger `0 17 * * *`，对应北京时间每天凌晨 01:00 自动备份；
 - 已预留通过 Resend API 将 gzip 备份附件发送到 `1876444302@qq.com`，待配置 `RESEND_API_KEY` 和 `BACKUP_EMAIL_FROM` 后启用；
-- 已配置 `RESEND_API_KEY` 为 Cloudflare Worker Secret，并配置 `BACKUP_EMAIL_FROM` 为 `cloud-blog-lite <backup@edu.zljcloud.com>`；
-- 已重新执行 `pnpm deploy:worker` 使邮件配置生效，版本 ID 为 `9ce7347a-fb9d-451b-80fb-08c3ca20829d`；
+- 已配置 `RESEND_API_KEY` 为 Cloudflare Worker Secret，并配置 `BACKUP_EMAIL_FROM` 为 `cloud-blog-lite <backup@zljcloud.com>`；
+- 已重新执行 `pnpm deploy:worker` 使邮件配置生效，版本 ID 为 `d320544b-2952-4fb8-bce5-4e058485c21b`；
 - 已由用户手动触发备份验证邮件发送，接口返回 `email.enabled: true` 且 `email.sent: true`，确认 Resend API 已接收发往 `1876444302@qq.com` 的压缩备份邮件发送请求，实际投递状态需以 Resend 日志和 QQ 邮箱收件情况为准；
 - 已新增备份与恢复文档 `docs/backup-and-restore.md`；
 - 已执行 `pnpm typecheck:worker`，Worker 类型检查通过；

@@ -1,0 +1,16 @@
+name = "cloud-blog-lite-api"
+main = "src/index.ts"
+compatibility_date = "2024-06-01"
+
+[vars]
+APP_NAME = "cloud-blog-lite-worker"
+COOKIE_NAME = "cloud_blog_token"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cloud-blog-lite"
+database_id = "local-development-placeholder"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "cloud-blog-lite-files"

@@ -1,0 +1,128 @@
+import { Hono } from 'hono'
+import type { Env } from '../../env'
+import { clearCookie, createCookie, getCookie } from '../../utils/cookie'
+import { fail, ok } from '../../utils/response'
+import { signJwt, verifyJwt } from '../../utils/jwt'
+import { verifyPassword } from '../../utils/crypto'
+import { nowIso } from '../../utils/id'
+
+const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
+
+interface LoginRequest {
+  username?: string
+  password?: string
+}
+
+interface UserRow {
+  id: string
+  username: string
+  password_hash: string
+  nickname: string | null
+  avatar: string | null
+  role: 'admin' | 'editor' | 'viewer'
+  status: number
+}
+
+function getCookieName(env: Env): string {
+  return env.COOKIE_NAME || 'cloud_blog_token'
+}
+
+function toCurrentUser(user: Omit<UserRow, 'password_hash'>) {
+  return {
+    id: user.id,
+    username: user.username,
+    nickname: user.nickname,
+    avatar: user.avatar,
+    role: user.role,
+    status: user.status,
+  }
+}
+
+export const authRoutes = new Hono<{ Bindings: Env }>()
+
+authRoutes.post('/login', async (c) => {
+  const body = await c.req.json<LoginRequest>().catch(() => null)
+  const username = body?.username?.trim()
+  const password = body?.password || ''
+
+  if (!username || !password) {
+    return c.json(fail('Username and password are required', 400), 400)
+  }
+
+  const user = await c.env.DB.prepare(
+    `SELECT id, username, password_hash, nickname, avatar, role, status
+     FROM users
+     WHERE username = ?
+     LIMIT 1`,
+  )
+    .bind(username)
+    .first<UserRow>()
+
+  if (!user) {
+    return c.json(fail('Invalid username or password', 401), 401)
+  }
+
+  if (user.status !== 1) {
+    return c.json(fail('User is disabled', 403), 403)
+  }
+
+  const passwordValid = await verifyPassword(password, user.password_hash)
+  if (!passwordValid) {
+    await c.env.DB.prepare('UPDATE users SET login_error_count = login_error_count + 1, updated_at = ? WHERE id = ?')
+      .bind(nowIso(), user.id)
+      .run()
+    return c.json(fail('Invalid username or password', 401), 401)
+  }
+
+  const time = nowIso()
+  await c.env.DB.prepare('UPDATE users SET login_error_count = 0, last_login_at = ?, updated_at = ? WHERE id = ?')
+    .bind(time, time, user.id)
+    .run()
+
+  const token = await signJwt(
+    {
+      sub: user.id,
+      username: user.username,
+      role: user.role,
+      nickname: user.nickname || undefined,
+    },
+    c.env,
+    TOKEN_MAX_AGE_SECONDS,
+  )
+
+  c.header('Set-Cookie', createCookie(getCookieName(c.env), token, TOKEN_MAX_AGE_SECONDS))
+
+  return c.json(ok(toCurrentUser(user)))
+})
+
+authRoutes.post('/logout', (c) => {
+  c.header('Set-Cookie', clearCookie(getCookieName(c.env)))
+  return c.json(ok(true))
+})
+
+authRoutes.get('/me', async (c) => {
+  const token = getCookie(c.req.header('Cookie'), getCookieName(c.env))
+  if (!token) {
+    return c.json(fail('Unauthorized', 401), 401)
+  }
+
+  const payload = await verifyJwt(token, c.env)
+  if (!payload) {
+    return c.json(fail('Unauthorized', 401), 401)
+  }
+
+  const user = await c.env.DB.prepare(
+    `SELECT id, username, nickname, avatar, role, status
+     FROM users
+     WHERE id = ?
+     LIMIT 1`,
+  )
+    .bind(payload.sub)
+    .first<Omit<UserRow, 'password_hash'>>()
+
+  if (!user || user.status !== 1) {
+    return c.json(fail('Unauthorized', 401), 401)
+  }
+
+  return c.json(ok(toCurrentUser(user)))
+})

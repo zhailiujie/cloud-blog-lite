@@ -207,6 +207,14 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 - 已验证 `https://blog.zljcloud.com` 返回 `200 OK`，`https://blog.zljcloud.com/api/health` 返回 `status: UP`；
 - 已通过 `POST /api/setup/admin` 初始化线上管理员账号，并验证 `GET /api/setup/status` 返回 `initialized: true`；
 - 已由用户在浏览器验证 `https://blog.zljcloud.com/login` 可成功登录，并进入后台用户管理页，确认 HTTPS、Cookie、前后端同域 API 正常；
+- 已实现管理员手动备份接口 `POST /api/admin/backups/run`，用于导出 D1 核心表并生成 gzip 压缩备份；
+- 已实现 D1 核心表备份上传到 R2，备份路径为 `backups/d1/daily/YYYY-MM-DD/*.json.gz`；
+- 已实现 R2 对象清单快照，备份 JSON 中包含 `r2_objects`；
+- 已配置 Cloudflare Cron Trigger `0 17 * * *`，对应北京时间每天凌晨 01:00 自动备份；
+- 已预留通过 Resend API 将 gzip 备份附件发送到 `1876444302@qq.com`，待配置 `RESEND_API_KEY` 和 `BACKUP_EMAIL_FROM` 后启用；
+- 已新增备份与恢复文档 `docs/backup-and-restore.md`；
+- 已执行 `pnpm typecheck:worker`，Worker 类型检查通过；
+- 已执行 `pnpm deploy:worker` 部署备份功能成功，版本 ID 为 `fc14b4ab-3a81-4d92-a7a6-66847ed4c641`；
 - 如本地启动 Worker 出现 `workerd/Miniflare access violation`，优先确认已重新执行 `pnpm install` 并使用新版 Wrangler；
 - 如果新版 Wrangler 仍然报 `There was an access violation in the runtime`，需要安装或更新 Microsoft Visual C++ Redistributable x64。
 
@@ -245,11 +253,11 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
   - [x] 17.3 Worker 配置 `/api/*` Route
   - [x] 17.4 验证 HTTPS、Cookie、前后端同域 API
 - [ ] 18. 实现备份
-  - [ ] 18.1 实现或确认 D1 手动导出方式
-  - [ ] 18.2 实现 D1 备份上传 R2
-  - [ ] 18.3 配置 Cron Trigger 定时备份
-  - [ ] 18.4 实现 R2 文件清单备份
-  - [ ] 18.5 编写恢复文档
+  - [x] 18.1 实现或确认 D1 手动导出方式
+  - [x] 18.2 实现 D1 备份上传 R2
+  - [x] 18.3 配置 Cron Trigger 定时备份
+  - [x] 18.4 实现 R2 文件清单备份
+  - [x] 18.5 编写恢复文档
   - [ ] 18.6 验证可以从备份恢复核心数据
 - [ ] 19. 迁移旧数据
   - [ ] 19.1 解压并确认旧 MySQL 数据

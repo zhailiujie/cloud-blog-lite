@@ -188,36 +188,36 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 - 站点账号/密码和菜单权限调整后执行 `pnpm -C ../cloud-blog-lite --filter @cloud-blog-lite/web build`，前端构建通过；
 - 已通过本地接口验证后台站点列表返回明文账号/密码，公开导航接口不返回账号/密码；
 - 已执行 `pnpm -C ../cloud-blog-lite --filter @cloud-blog-lite/worker exec wrangler d1 migrations apply cloud-blog-lite --local`，本地 D1 migration 执行成功，18 条 SQL 命令成功；
-- 已执行 `pnpm --filter @cloud-blog-lite/worker exec wrangler whoami`，确认 Wrangler 已登录 Cloudflare，账号邮箱为 `jack643076579@gmail.com`，具备 Workers、D1、Pages、R2 等相关权限；
-- 已在 Cloudflare 创建远程 D1 数据库 `cloud-blog-lite`，并将 `apps/worker/wrangler.toml` 的 `database_id` 更新为 `e928dd6c-21e2-4a98-81d5-d9e2d189958f`；
+- 已执行 `pnpm --filter @cloud-blog-lite/worker exec wrangler whoami`，确认 Wrangler 已登录 Cloudflare，账号邮箱为 `***@***.com`，具备 Workers、D1、Pages、R2 等相关权限；
+- 已在 Cloudflare 创建远程 D1 数据库 `cloud-blog-lite`，并将 `apps/worker/wrangler.toml` 的 `database_id` 更新为 `<D1_DATABASE_ID>`；
 - 已执行 `pnpm --filter @cloud-blog-lite/worker exec wrangler r2 bucket list`，确认远程 R2 Bucket `cloud-blog-lite-files` 已创建；
 - 已通过 `wrangler secret put JWT_SECRET` 配置生产环境 JWT 签名密钥，密钥由本地随机生成且未写入仓库；
 - 已通过 `wrangler secret put SITE_SECRET` 配置生产环境站点密码加密密钥，密钥由本地随机生成且未写入仓库；
 - 已按用户要求重新生成并覆盖生产环境 `JWT_SECRET` 与 `SITE_SECRET`，明文仅交给用户保存，未写入仓库或文档；
 - 已执行 `pnpm d1:migrate:remote`，远程 D1 数据库 `cloud-blog-lite` 成功应用 `0001_initial.sql`，共执行 18 条 SQL 命令；
 - 已修正根项目 `deploy:worker` 脚本为 `pnpm --filter @cloud-blog-lite/worker run deploy`，避免 pnpm 9 内置 `deploy` 命令冲突；
-- 已执行 `pnpm deploy:worker` 部署 Worker 成功，线上地址为 `https://cloud-blog-lite-api.jack643076579.workers.dev`，版本 ID 为 `d9073f8e-4415-49f5-885e-265d7962cbc3`；
-- 已验证 Worker 健康检查接口 `https://cloud-blog-lite-api.jack643076579.workers.dev/api/health` 返回 `status: UP`；
+- 已执行 `pnpm deploy:worker` 部署 Worker 成功，线上地址为 `https://***.com`，版本 ID 为 `<WORKER_VERSION_ID>`；
+- 已验证 Worker 健康检查接口 `https://***.com/api/health` 返回 `status: UP`；
 - 已执行 `pnpm build:web`，前端构建通过；
-- 已创建 Cloudflare Pages 项目 `cloud-blog-lite`，并执行 `wrangler pages deploy ../web/dist --project-name cloud-blog-lite --branch main --commit-dirty=true` 部署前端成功，预览地址为 `https://4588a85a.cloud-blog-lite.pages.dev`；
-- 已确认域名 `zljcloud.com` 已接入 Cloudflare DNS；
-- 已将访问域名规划调整为子域名 `blog.zljcloud.com`；
-- 已在 `apps/worker/wrangler.toml` 配置 Worker Route `blog.zljcloud.com/api/*`，并重新执行 `pnpm deploy:worker` 部署成功，版本 ID 为 `6fc1180e-9778-4203-b859-b5d0f12db7b6`；
-- 待 Cloudflare Pages 绑定 `blog.zljcloud.com` 并完成 DNS/证书签发后，再验证 `https://blog.zljcloud.com/api/health`；
-- 已验证 `https://blog.zljcloud.com` 返回 `200 OK`，`https://blog.zljcloud.com/api/health` 返回 `status: UP`；
+- 已创建 Cloudflare Pages 项目 `cloud-blog-lite`，并执行 `wrangler pages deploy ../web/dist --project-name cloud-blog-lite --branch main --commit-dirty=true` 部署前端成功，预览地址为 `https://***.com`；
+- 已确认域名 `***.com` 已接入 Cloudflare DNS；
+- 已将访问域名规划调整为子域名 `blog.***.com`；
+- 已在 `apps/worker/wrangler.toml` 配置 Worker Route `blog.***.com/api/*`，并重新执行 `pnpm deploy:worker` 部署成功，版本 ID 为 `<WORKER_VERSION_ID>`；
+- 待 Cloudflare Pages 绑定 `blog.***.com` 并完成 DNS/证书签发后，再验证 `https://blog.***.com/api/health`；
+- 已验证 `https://blog.***.com` 返回 `200 OK`，`https://blog.***.com/api/health` 返回 `status: UP`；
 - 已通过 `POST /api/setup/admin` 初始化线上管理员账号，并验证 `GET /api/setup/status` 返回 `initialized: true`；
-- 已由用户在浏览器验证 `https://blog.zljcloud.com/login` 可成功登录，并进入后台用户管理页，确认 HTTPS、Cookie、前后端同域 API 正常；
+- 已由用户在浏览器验证 `https://blog.***.com/login` 可成功登录，并进入后台用户管理页，确认 HTTPS、Cookie、前后端同域 API 正常；
 - 已实现管理员手动备份接口 `POST /api/admin/backups/run`，用于导出 D1 核心表并生成 gzip 压缩备份；
 - 已实现 D1 核心表备份上传到 R2，备份路径为 `backups/d1/daily/YYYY-MM-DD/*.json.gz`；
 - 已实现 R2 对象清单快照，备份 JSON 中包含 `r2_objects`；
 - 已配置 Cloudflare Cron Trigger `0 17 * * *`，对应北京时间每天凌晨 01:00 自动备份；
-- 已预留通过 Resend API 将 gzip 备份附件发送到 `1876444302@qq.com`，待配置 `RESEND_API_KEY` 和 `BACKUP_EMAIL_FROM` 后启用；
-- 已配置 `RESEND_API_KEY` 为 Cloudflare Worker Secret，并配置 `BACKUP_EMAIL_FROM` 为 `cloud-blog-lite <backup@zljcloud.com>`；
-- 已重新执行 `pnpm deploy:worker` 使邮件配置生效，版本 ID 为 `d320544b-2952-4fb8-bce5-4e058485c21b`；
-- 已由用户手动触发备份验证邮件发送，接口返回 `email.enabled: true` 且 `email.sent: true`，确认 Resend API 已接收发往 `1876444302@qq.com` 的压缩备份邮件发送请求，实际投递状态需以 Resend 日志和 QQ 邮箱收件情况为准；
+- 已预留通过 Resend API 将 gzip 备份附件发送到 `***@***.com`，待配置 `RESEND_API_KEY` 和 `BACKUP_EMAIL_FROM` 后启用；
+- 已配置 `RESEND_API_KEY` 为 Cloudflare Worker Secret，并配置 `BACKUP_EMAIL_FROM` 为 `cloud-blog-lite <backup@***.com>`；
+- 已重新执行 `pnpm deploy:worker` 使邮件配置生效，版本 ID 为 `<WORKER_VERSION_ID>`；
+- 已由用户手动触发备份验证邮件发送，接口返回 `email.enabled: true` 且 `email.sent: true`，确认 Resend API 已接收发往 `***@***.com` 的压缩备份邮件发送请求，实际投递状态需以 Resend 日志和 QQ 邮箱收件情况为准；
 - 已新增备份与恢复文档 `docs/backup-and-restore.md`；
 - 已执行 `pnpm typecheck:worker`，Worker 类型检查通过；
-- 已执行 `pnpm deploy:worker` 部署备份功能成功，版本 ID 为 `fc14b4ab-3a81-4d92-a7a6-66847ed4c641`；
+- 已执行 `pnpm deploy:worker` 部署备份功能成功，版本 ID 为 `<WORKER_VERSION_ID>`；
 - 已由用户在浏览器控制台手动调用 `POST /api/admin/backups/run`，返回 `code: 0` 且 `data.ok: true`；
 - 已在 Cloudflare R2 `cloud-blog-lite-files/backups/d1/daily/2026-05-24/` 确认生成压缩备份文件 `cloud-blog-lite-d1-2026-05-24T12-10-14Z.json.gz`；
 - 如本地启动 Worker 出现 `workerd/Miniflare access violation`，优先确认已重新执行 `pnpm install` 并使用新版 Wrangler；
@@ -254,7 +254,7 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
   - [ ] 16.10 验证线上 `/api/health`、登录、后台、前台导航、上传、设置和日志
 - [x] 17. 绑定域名
   - [x] 17.1 确认域名已接入 Cloudflare DNS
-  - [x] 17.2 Cloudflare Pages 绑定访问域名 `blog.zljcloud.com`
+  - [x] 17.2 Cloudflare Pages 绑定访问域名 `blog.***.com`
   - [x] 17.3 Worker 配置 `/api/*` Route
   - [x] 17.4 验证 HTTPS、Cookie、前后端同域 API
 - [ ] 18. 实现备份
@@ -949,7 +949,7 @@ pageSize
 {
   "categoryId": "category-id",
   "name": "GitHub",
-  "url": "https://github.com",
+  "url": "https://***.com",
   "description": "代码托管平台",
   "logo": "https://...",
   "sort": 10,

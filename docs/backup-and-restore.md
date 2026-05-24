@@ -62,7 +62,7 @@ crons = ["0 17 * * *"]
 POST /api/admin/backups/run
 ```
 
-例如在浏览器已登录 `https://blog.zljcloud.com` 后，可以通过开发者工具 Console 执行：
+例如在浏览器已登录 `https://blog.***.com` 后，可以通过开发者工具 Console 执行：
 
 ```js
 fetch('/api/admin/backups/run', { method: 'POST', credentials: 'include' })
@@ -102,7 +102,7 @@ fetch('/api/admin/backups/run', { method: 'POST', credentials: 'include' })
 当前代码已预留通过 Resend API 将 gzip 备份作为附件发送到：
 
 ```text
-1876444302@qq.com
+***@***.com
 ```
 
 但邮件发送需要额外配置：
@@ -117,7 +117,7 @@ BACKUP_EMAIL_TO
 
 - `RESEND_API_KEY`：Resend API Key，必须通过 Cloudflare Worker Secret 配置；
 - `BACKUP_EMAIL_FROM`：Resend 中已验证的发件人，例如 `cloud-blog-lite <backup@example.com>`；
-- `BACKUP_EMAIL_TO`：收件人，当前已配置为 `1876444302@qq.com`。
+- `BACKUP_EMAIL_TO`：收件人，当前已配置为 `***@***.com`。
 
 配置示例：
 

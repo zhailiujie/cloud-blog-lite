@@ -1,6 +1,9 @@
 name = "cloud-blog-lite-api"
 main = "src/index.ts"
 compatibility_date = "2024-06-01"
+routes = [
+  { pattern = "blog.zljcloud.com/api/*", zone_name = "zljcloud.com" }
+]
 
 [vars]
 APP_NAME = "cloud-blog-lite-worker"
@@ -9,7 +12,7 @@ COOKIE_NAME = "cloud_blog_token"
 [[d1_databases]]
 binding = "DB"
 database_name = "cloud-blog-lite"
-database_id = "local-development-placeholder"
+database_id = "e928dd6c-21e2-4a98-81d5-d9e2d189958f"
 
 [[r2_buckets]]
 binding = "R2"

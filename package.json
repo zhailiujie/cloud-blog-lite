@@ -8,7 +8,7 @@
     "build:web": "pnpm --filter @cloud-blog-lite/web build",
     "preview:web": "pnpm --filter @cloud-blog-lite/web preview",
     "dev:worker": "pnpm --filter @cloud-blog-lite/worker dev",
-    "deploy:worker": "pnpm --filter @cloud-blog-lite/worker deploy",
+    "deploy:worker": "pnpm --filter @cloud-blog-lite/worker run deploy",
     "typecheck:worker": "pnpm --filter @cloud-blog-lite/worker typecheck",
     "d1:migrate:local": "pnpm --filter @cloud-blog-lite/worker d1:migrate:local",
     "d1:migrate:remote": "pnpm --filter @cloud-blog-lite/worker d1:migrate:remote"

@@ -188,6 +188,7 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 - 站点账号/密码和菜单权限调整后执行 `pnpm -C ../cloud-blog-lite --filter @cloud-blog-lite/web build`，前端构建通过；
 - 已通过本地接口验证后台站点列表返回明文账号/密码，公开导航接口不返回账号/密码；
 - 已执行 `pnpm -C ../cloud-blog-lite --filter @cloud-blog-lite/worker exec wrangler d1 migrations apply cloud-blog-lite --local`，本地 D1 migration 执行成功，18 条 SQL 命令成功；
+- 已执行 `pnpm --filter @cloud-blog-lite/worker exec wrangler whoami`，确认 Wrangler 已登录 Cloudflare，账号邮箱为 `jack643076579@gmail.com`，具备 Workers、D1、Pages、R2 等相关权限；
 - 如本地启动 Worker 出现 `workerd/Miniflare access violation`，优先确认已重新执行 `pnpm install` 并使用新版 Wrangler；
 - 如果新版 Wrangler 仍然报 `There was an access violation in the runtime`，需要安装或更新 Microsoft Visual C++ Redistributable x64。
 
@@ -210,7 +211,7 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 待执行任务清单：
 
 - [ ] 16. 部署到 Cloudflare
-  - [ ] 16.1 登录 Cloudflare Wrangler
+  - [x] 16.1 登录 Cloudflare Wrangler
   - [ ] 16.2 创建远程 D1 数据库
   - [ ] 16.3 创建远程 R2 Bucket
   - [ ] 16.4 更新 `apps/worker/wrangler.toml` 中的真实 `database_id`

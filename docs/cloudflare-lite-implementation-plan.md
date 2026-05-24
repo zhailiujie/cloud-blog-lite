@@ -207,6 +207,7 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 - 已验证 `https://blog.***.com` 返回 `200 OK`，`https://blog.***.com/api/health` 返回 `status: UP`；
 - 已通过 `POST /api/setup/admin` 初始化线上管理员账号，并验证 `GET /api/setup/status` 返回 `initialized: true`；
 - 已由用户在浏览器验证 `https://blog.***.com/login` 可成功登录，并进入后台用户管理页，确认 HTTPS、Cookie、前后端同域 API 正常；
+- 已由用户确认线上分类管理、站点管理、前台导航、上传、系统设置和操作日志验证完成，`16.10` 线上完整功能验证通过；
 - 已实现管理员手动备份接口 `POST /api/admin/backups/run`，用于导出 D1 核心表并生成 gzip 压缩备份；
 - 已实现 D1 核心表备份上传到 R2，备份路径为 `backups/d1/daily/YYYY-MM-DD/*.json.gz`；
 - 已实现 R2 对象清单快照，备份 JSON 中包含 `r2_objects`；
@@ -241,7 +242,7 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
 
 待执行任务清单：
 
-- [ ] 16. 部署到 Cloudflare
+- [x] 16. 部署到 Cloudflare
   - [x] 16.1 登录 Cloudflare Wrangler
   - [x] 16.2 创建远程 D1 数据库
   - [x] 16.3 创建远程 R2 Bucket
@@ -251,7 +252,7 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
   - [x] 16.7 执行远程 D1 migration
   - [x] 16.8 部署 Worker
   - [x] 16.9 部署 Cloudflare Pages 前端
-  - [ ] 16.10 验证线上 `/api/health`、登录、后台、前台导航、上传、设置和日志
+  - [x] 16.10 验证线上 `/api/health`、登录、后台、前台导航、上传、设置和日志
 - [x] 17. 绑定域名
   - [x] 17.1 确认域名已接入 Cloudflare DNS
   - [x] 17.2 Cloudflare Pages 绑定访问域名 `blog.***.com`

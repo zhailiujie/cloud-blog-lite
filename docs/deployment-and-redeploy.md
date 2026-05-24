@@ -214,21 +214,23 @@ docs
 
 ## 6. 配置 Worker 变量和 Cron
 
-`apps/worker/wrangler.toml` 示例：
+`apps/worker/wrangler.toml` 会提交到 GitHub。提交前应使用占位符，不要写入真实个人域名和邮箱。
+
+提交到仓库的示例：
 
 ```toml
 name = "cloud-blog-lite-api"
 main = "src/index.ts"
 compatibility_date = "2024-06-01"
 routes = [
-  { pattern = "blog.***.com/api/*", zone_name = "***.com" }
+  { pattern = "blog.**.com/api/*", zone_name = "**.com" }
 ]
 
 [vars]
 APP_NAME = "cloud-blog-lite-worker"
 COOKIE_NAME = "cloud_blog_token"
-BACKUP_EMAIL_TO = "***@***.com"
-BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@***.com>"
+BACKUP_EMAIL_TO = "**@**.com"
+BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@**.com>"
 
 [triggers]
 # Cloudflare Cron 使用 UTC。17:00 UTC 等于北京时间 01:00。
@@ -243,6 +245,19 @@ database_id = "<D1_DATABASE_ID>"
 binding = "R2"
 bucket_name = "cloud-blog-lite-files"
 ```
+
+本地部署前需要把占位符改成自己的真实域名和邮箱，例如：
+
+```toml
+routes = [
+  { pattern = "blog.<your-domain>.com/api/*", zone_name = "<your-domain>.com" }
+]
+
+BACKUP_EMAIL_TO = "<your-email>"
+BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@<your-domain>.com>"
+```
+
+注意：本地真实值用于部署，不建议提交到公开仓库。
 
 ## 7. 执行远程 D1 Migration
 

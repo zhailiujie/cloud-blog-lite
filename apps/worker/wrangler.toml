@@ -2,14 +2,14 @@ name = "cloud-blog-lite-api"
 main = "src/index.ts"
 compatibility_date = "2024-06-01"
 routes = [
-  { pattern = "blog.zljcloud.com/api/*", zone_name = "zljcloud.com" }
+  { pattern = "blog.**.com/api/*", zone_name = "**.com" }
 ]
 
 [vars]
 APP_NAME = "cloud-blog-lite-worker"
 COOKIE_NAME = "cloud_blog_token"
-BACKUP_EMAIL_TO = "1876444302@qq.com"
-BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@zljcloud.com>"
+BACKUP_EMAIL_TO = "**@**.com"
+BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@**.com>"
 
 [triggers]
 # Cloudflare Cron uses UTC. 17:00 UTC equals 01:00 Beijing time (UTC+8).

@@ -171,6 +171,34 @@ function renderCopyButton(value: string) {
   })
 }
 
+function renderPasswordToggleButton(visible: boolean, onClick: () => void) {
+  const title = visible ? '隐藏密码' : '显示密码'
+  return h(NButton, { size: 'tiny', quaternary: true, circle: true, title, onClick }, {
+    default: () => h('svg', {
+      viewBox: '0 0 24 24',
+      width: 16,
+      height: 16,
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': 2,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'aria-hidden': 'true',
+      style: 'display:block;color:var(--text-color-2);',
+    }, visible
+      ? [
+          h('path', { d: 'M3 3l18 18' }),
+          h('path', { d: 'M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58' }),
+          h('path', { d: 'M9.88 4.24A10.8 10.8 0 0 1 12 4c5 0 9 4.5 10 8a12.6 12.6 0 0 1-2.12 3.48' }),
+          h('path', { d: 'M6.1 6.1C4.08 7.42 2.7 9.55 2 12c1 3.5 5 8 10 8 1.38 0 2.68-.34 3.86-.95' }),
+        ]
+      : [
+          h('path', { d: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z' }),
+          h('circle', { cx: 12, cy: 12, r: 3 }),
+        ]),
+  })
+}
+
 function renderUrl(value: string) {
   return h(NSpace, { align: 'center', size: 4, wrap: false }, {
     default: () => [
@@ -195,7 +223,7 @@ function renderPassword(row: Site) {
   return h(NSpace, { align: 'center', size: 4 }, {
     default: () => [
       h('span', { class: 'copy-text' }, visible ? value : '••••••••'),
-      h(NButton, { size: 'tiny', quaternary: true, onClick: () => { visiblePasswords.value[row.id] = !visible } }, { default: () => visible ? '隐藏' : '显示' }),
+      renderPasswordToggleButton(visible, () => { visiblePasswords.value[row.id] = !visible }),
       renderCopyButton(value),
     ],
   })
@@ -254,8 +282,8 @@ async function handleLogoUpload(options: { file: { file?: File | null }; onFinis
     form.logo = result?.url || ''
     message.success('Logo 上传成功')
     options.onFinish?.()
-  } catch {
-    message.error('Logo 上传失败')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : 'Logo 上传失败')
     options.onError?.()
   }
 }

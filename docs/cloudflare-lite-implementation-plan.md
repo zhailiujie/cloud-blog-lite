@@ -264,13 +264,13 @@ D:\project\zed\cloud-blog-lite\apps\web\src\api\dashboard.ts
   - [x] 17.2 Cloudflare Pages 绑定访问域名 `blog.***.com`
   - [x] 17.3 Worker 配置 `/api/*` Route
   - [x] 17.4 验证 HTTPS、Cookie、前后端同域 API
-- [ ] 18. 实现备份
+- [x] 18. 实现备份
   - [x] 18.1 实现或确认 D1 手动导出方式
   - [x] 18.2 实现 D1 备份上传 R2
   - [x] 18.3 配置 Cron Trigger 定时备份
   - [x] 18.4 实现 R2 文件清单备份
   - [x] 18.5 编写恢复文档
-  - [ ] 18.6 验证可以从备份恢复核心数据
+  - [x] 18.6 验证可以从备份恢复核心数据
 - [x] 19. 迁移旧数据
   - [x] 19.1 解压并确认旧 MySQL 数据
   - [x] 19.2 编写分类数据迁移脚本

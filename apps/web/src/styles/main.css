@@ -274,15 +274,86 @@ body, button, input {
 }
 
 .auth-page {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 16% 18%, color-mix(in srgb, var(--primary), transparent 65%), transparent 24rem),
+    radial-gradient(circle at 82% 18%, rgba(6, 182, 212, 0.2), transparent 22rem),
+    radial-gradient(circle at 50% 92%, rgba(168, 85, 247, 0.18), transparent 26rem),
+    linear-gradient(135deg, var(--bg), var(--bg-soft));
+}
+
+.auth-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(color-mix(in srgb, var(--border), transparent 42%) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border), transparent 42%) 1px, transparent 1px),
+    radial-gradient(circle at center, color-mix(in srgb, var(--primary), transparent 35%) 0 2px, transparent 3px);
+  background-size: 72px 72px, 72px 72px, 144px 144px;
+  mask-image: radial-gradient(ellipse at center, #000 0%, #000 46%, transparent 78%);
+  opacity: 0.42;
+}
+
+.auth-page::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: min(920px, 82vw);
+  height: min(920px, 82vw);
+  border-radius: 36% 64% 58% 42%;
+  background:
+    radial-gradient(circle at 28% 30%, rgba(99, 102, 241, 0.42), transparent 11%),
+    radial-gradient(circle at 68% 34%, rgba(6, 182, 212, 0.28), transparent 10%),
+    radial-gradient(circle at 55% 70%, rgba(168, 85, 247, 0.32), transparent 12%),
+    conic-gradient(from 140deg, transparent, rgba(99, 102, 241, 0.16), transparent 38%, rgba(6, 182, 212, 0.14), transparent 70%);
+  filter: blur(2px);
+  opacity: 0.8;
+  transform: translate3d(0, 0, 0) rotate(-8deg);
 }
 
 .auth-card {
+  position: relative;
+  overflow: hidden;
   width: 380px;
   border-radius: 24px;
-  box-shadow: var(--shadow);
+  border: 1px solid color-mix(in srgb, var(--border), transparent 10%);
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(18px);
+}
+
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 28%),
+    radial-gradient(circle at 88% 10%, color-mix(in srgb, var(--primary), transparent 78%), transparent 9rem);
+  opacity: 0.62;
+}
+
+:root[data-theme='dark'] .auth-page {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(99, 102, 241, 0.28), transparent 25rem),
+    radial-gradient(circle at 84% 18%, rgba(6, 182, 212, 0.18), transparent 24rem),
+    radial-gradient(circle at 50% 96%, rgba(168, 85, 247, 0.2), transparent 28rem),
+    linear-gradient(135deg, #080b16 0%, #0c1222 52%, #111827 100%);
+}
+
+:root[data-theme='dark'] .auth-page::before {
+  opacity: 0.34;
+}
+
+:root[data-theme='dark'] .auth-card {
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 }
 
 .admin-layout {

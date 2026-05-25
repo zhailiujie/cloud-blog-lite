@@ -53,8 +53,8 @@ async function handleLogoUpload(options: { file: { file?: File | null }; onFinis
     form['site.logo'] = result?.url || ''
     message.success('Logo 上传成功')
     options.onFinish?.()
-  } catch {
-    message.error('Logo 上传失败')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : 'Logo 上传失败')
     options.onError?.()
   }
 }

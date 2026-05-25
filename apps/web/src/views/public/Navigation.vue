@@ -46,7 +46,6 @@
             <p>精选资源</p>
             <h2>{{ currentCategory?.name || '暂无分类' }}</h2>
           </div>
-          <n-button secondary @click="$router.push('/admin')">管理站点</n-button>
         </div>
 
         <div v-if="loading" class="site-grid">

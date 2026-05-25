@@ -575,7 +575,261 @@ git commit -m "chore: update worker config"
 git push
 ```
 
-## 15. 文档脱敏规则
+## 15. 部署排错与注意事项
+
+以下问题是实际部署中容易遇到的坑，文档中只记录通用原因和处理方式，不记录真实 Secret、邮箱、域名、账号信息。
+
+### 15.1 本地依赖缺失导致检查/构建失败
+
+如果执行：
+
+```bash
+pnpm typecheck:worker
+pnpm build:web
+```
+
+出现类似：
+
+```text
+'tsc' 不是内部或外部命令
+'vue-tsc' 不是内部或外部命令
+Local package.json exists, but node_modules missing
+```
+
+说明当前工作区没有安装依赖，需要先执行：
+
+```bash
+pnpm install
+```
+
+注意：如果本机 pnpm 版本低于项目锁文件版本，可能出现 lockfile 兼容警告，并导致 `pnpm-lock.yaml` 被旧版本 pnpm 重写。部署前应确认锁文件是否发生无关变更；如果只是本机旧 pnpm 造成的锁文件格式降级，不要提交该无关变更。
+
+建议使用与 `package.json` 中 `packageManager` 匹配的 pnpm 版本。
+
+### 15.2 Wrangler 未登录会阻止部署
+
+如果执行 Wrangler 命令时出现：
+
+```text
+You are not authenticated. Please run `wrangler login`.
+```
+
+需要先登录：
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler login
+```
+
+验证：
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler whoami
+```
+
+文档和提交记录中不要记录真实账号邮箱，只记录“已登录并具备权限”。
+
+### 15.3 新增 Secret 后必须先配置再部署/验证
+
+如果代码新增了 Worker Secret，例如验证码、第三方 API、加密密钥等，必须先在 Cloudflare Worker 中配置：
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler secret put SECRET_NAME
+```
+
+检查 Secret 是否存在：
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler secret list
+```
+
+注意：
+
+```text
+1. 不要把 Secret 写入 wrangler.toml。
+2. 不要通过 echo、命令参数、脚本硬编码等方式传入 Secret。
+3. 不要把 Secret 发到聊天记录、截图、文档或 Git。
+4. 如果 Secret 曾经暴露，应到对应平台轮换后重新配置。
+```
+
+如果缺少必需 Secret，Worker 可能可以部署成功，但运行到相关接口时会返回配置错误。
+
+### 15.4 Turnstile/验证码类功能需要同时配置前后端
+
+如果接入 Cloudflare Turnstile 或类似验证码，需要确认：
+
+```text
+1. 前端使用的是公开 site key。
+2. 后端使用 Secret，并通过 Wrangler Secret 管理。
+3. Cloudflare Turnstile 后台已允许当前访问 hostname。
+4. 测试环境、预览环境、正式域名需要分别加入允许 hostname。
+```
+
+如果页面显示“无法连接到网站”或验证码加载失败，优先检查：
+
+```text
+1. 当前 hostname 是否在 Turnstile 允许列表中。
+2. 浏览器/代理/插件是否拦截 challenges.cloudflare.com。
+3. 前端部署后是否实际访问到了最新构建产物。
+```
+
+### 15.5 Worker Route 的 zone_name 不能使用占位值
+
+`apps/worker/wrangler.toml` 中的 Worker Route 示例通常会使用占位符：
+
+```toml
+routes = [
+  { pattern = "blog.<your-domain>/api/*", zone_name = "<your-zone>" }
+]
+```
+
+本地部署前必须把 `zone_name` 改成 Cloudflare 中真实存在的 Zone 名称。否则 `pnpm deploy:worker` 可能报错：
+
+```text
+Could not find zone for `<placeholder>`.
+Make sure the domain is set up to be proxied by Cloudflare.
+```
+
+处理方式：
+
+```text
+1. 到 Cloudflare Dashboard 确认当前站点所属 Zone。
+2. 将 wrangler.toml 中的 route pattern 和 zone_name 改成本地部署所需真实值。
+3. 部署成功后，提交前按脱敏规则处理，不要把不应公开的真实值写入公开仓库。
+```
+
+### 15.6 Worker 上传成功但路由绑定失败时要看完整日志
+
+`wrangler deploy` 可能先显示：
+
+```text
+Uploaded <worker-name>
+```
+
+随后又因为路由、权限或 Zone 配置失败而退出。此时不能只看 “Uploaded”，应确认最终是否出现：
+
+```text
+Deployed <worker-name> triggers
+Current Version ID: <WORKER_VERSION_ID>
+```
+
+只有出现最终部署成功信息并且 `/api/health` 验证通过，才算部署完成。
+
+### 15.7 Pages 部署时注意执行目录和 dist 路径
+
+如果使用：
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler pages deploy apps/web/dist --project-name <pages-project>
+```
+
+`pnpm --filter ... exec` 可能会以 `apps/worker` 作为执行目录，导致 Wrangler 实际查找：
+
+```text
+apps/worker/apps/web/dist
+```
+
+从而报错：
+
+```text
+ENOENT: no such file or directory, scandir '<wrong-dist-path>'
+```
+
+推荐使用相对于 `apps/worker` 的路径：
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler pages deploy ../web/dist --project-name <pages-project> --commit-dirty=true
+```
+
+或者使用文档中的 `--dir apps/worker` 写法：
+
+```bash
+pnpm --dir apps/worker exec wrangler pages deploy ../web/dist --project-name <pages-project> --branch main --commit-dirty=true
+```
+
+### 15.8 根目录可能找不到 wrangler
+
+本项目的 `wrangler` 安装在 Worker 子包中。如果在根目录执行：
+
+```bash
+pnpm exec wrangler ...
+```
+
+可能报错：
+
+```text
+'wrangler' 不是内部或外部命令，也不是可运行的程序
+Command "wrangler" not found
+```
+
+应改用：
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler ...
+```
+
+或：
+
+```bash
+pnpm --dir apps/worker exec wrangler ...
+```
+
+### 15.9 Pages 提示未提交变更不是失败
+
+如果部署 Pages 时出现：
+
+```text
+Warning: Your working directory is a git repo and has uncommitted changes
+To silence this warning, pass in --commit-dirty=true
+```
+
+这是提醒当前工作区有未提交变更，不一定是错误。临时手动部署可加：
+
+```bash
+--commit-dirty=true
+```
+
+但正式发布前仍建议检查：
+
+```bash
+git status --short
+git diff --stat
+```
+
+确认没有无关文件、敏感信息或本地状态被带入提交。
+
+### 15.10 Pages wrangler.toml 提示可忽略或单独配置
+
+部署 Pages 时可能看到：
+
+```text
+Pages now has wrangler.toml support
+missing the pages_build_output_dir field
+Ignoring configuration file for now
+```
+
+这是 Wrangler 检测到某个 `wrangler.toml`，但该文件是 Worker 配置，不是 Pages 配置。只要后续 Pages 上传成功，这个警告可以忽略。
+
+如果未来希望统一用 Pages 的 `wrangler.toml` 管理，需要单独评估并配置 `pages_build_output_dir`，避免影响现有 Worker 配置。
+
+### 15.11 部署完成后必须做线上验证
+
+部署命令成功不代表业务完全可用。至少验证：
+
+```text
+1. /api/health 返回 status: UP。
+2. 前端页面访问的是最新部署版本。
+3. 登录流程可用。
+4. 新增的 Secret 相关接口运行正常。
+5. 上传、备份等被修改过的功能符合预期。
+```
+
+Worker 健康检查示例：
+
+```text
+https://blog.***.com/api/health
+```
+
+## 16. 文档脱敏规则
 
 提交前检查：
 
@@ -600,13 +854,13 @@ git push
 <STRONG_PASSWORD>
 ```
 
-## 16. 待处理项
+## 17. 待处理项
 
 当前已知待处理：
 
 ```text
 1. 如果收件邮箱持续收不到带 `.json.gz` 附件的备份邮件，建议改成“只发送备份摘要和 R2 路径，不带附件”。
-2. 备份恢复目前已有文档说明，但还未做完整恢复演练。
+2. 备份恢复文档已编写，核心数据恢复演练已完成。
 3. 后续可实现备份下载/恢复管理页面。
 4. 后续可实现备份保留策略，例如保留最近 7 天每日备份、4 周每周备份、12 个月每月备份。
 ```

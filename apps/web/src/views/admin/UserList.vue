@@ -185,8 +185,8 @@ async function handleAvatarUpload(options: { file: { file?: File | null }; onFin
     form.avatar = result?.url || ''
     message.success('头像上传成功')
     options.onFinish?.()
-  } catch {
-    message.error('头像上传失败')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '头像上传失败')
     options.onError?.()
   }
 }

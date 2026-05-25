@@ -1,12 +1,6 @@
 import type { Env } from "../../env";
 
-const TABLES = [
-  "users",
-  "categories",
-  "sites",
-  "settings",
-  "operation_logs",
-] as const;
+const TABLES = ["users", "categories", "sites", "settings"] as const;
 
 export interface BackupResult {
   ok: boolean;

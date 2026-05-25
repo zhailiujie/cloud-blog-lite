@@ -6,6 +6,7 @@ export interface Env {
   BACKUP_EMAIL_FROM?: string;
   BACKUP_EMAIL_TO?: string;
   COOKIE_NAME?: string;
+  TURNSTILE_SECRET_KEY?: string;
   DB: D1Database;
   R2: R2Bucket;
 }

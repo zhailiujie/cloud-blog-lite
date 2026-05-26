@@ -235,10 +235,14 @@ body, button, input {
   background: linear-gradient(135deg, #06b6d4, #6366f1);
 }
 
+.site-logo.has-logo {
+  background: transparent;
+}
+
 .site-logo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .site-main h3 {

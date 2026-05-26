@@ -1,6 +1,6 @@
 <template>
   <a class="site-card" :href="url" target="_blank" rel="noopener noreferrer">
-    <div class="site-logo">
+    <div class="site-logo" :class="{ 'has-logo': Boolean(logo) }">
       <img v-if="logo" :src="logo" :alt="name" />
       <span v-else>{{ name.slice(0, 1).toUpperCase() }}</span>
     </div>

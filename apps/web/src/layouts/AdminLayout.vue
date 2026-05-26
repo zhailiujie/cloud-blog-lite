@@ -18,6 +18,13 @@
         </div>
         <n-space align="center">
           <ThemeSwitch />
+          <n-button quaternary circle title="打开导航页" @click="router.push('/')">
+            <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 11l9-8 9 8" />
+              <path d="M5 10v10h14V10" />
+              <path d="M9 20v-6h6v6" />
+            </svg>
+          </n-button>
           <span class="user-name">{{ auth.user?.nickname || auth.user?.username }}</span>
           <n-button size="small" @click="handleLogout">退出</n-button>
         </n-space>
@@ -78,3 +85,11 @@ async function handleLogout() {
   router.push('/login')
 }
 </script>
+
+<style scoped>
+.header-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+</style>

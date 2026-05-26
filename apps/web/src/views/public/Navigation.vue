@@ -28,24 +28,33 @@
     <section ref="contentShellRef" class="content-shell">
       <!-- 左侧分类导航 -->
       <aside class="category-panel glass-panel">
-        <button
-          v-for="category in categories"
-          :key="category.id"
-          class="category-item"
-          :class="{ active: activeCategory === category.id }"
-          @click="selectCategory(category.id)"
-        >
-          <span class="cat-icon">
-            {{ isEmoji(category.icon) ? category.icon : category.name.slice(0, 1) }}
-          </span>
-          <span class="cat-name">{{ category.name }}</span>
-        </button>
+        <!-- 加载中：分类骨架屏 -->
+        <template v-if="loading">
+          <div v-for="i in 9" :key="i" class="cat-skeleton">
+            <div class="skel skel-circle"></div>
+            <div class="skel skel-bar" :style="{ width: (50 + (i % 4) * 18) + 'px' }"></div>
+          </div>
+        </template>
+        <template v-else>
+          <button
+            v-for="category in categories"
+            :key="category.id"
+            class="category-item"
+            :class="{ active: activeCategory === category.id }"
+            @click="selectCategory(category.id)"
+          >
+            <span class="cat-icon">
+              {{ isEmoji(category.icon) ? category.icon : category.name.slice(0, 1) }}
+            </span>
+            <span class="cat-name">{{ category.name }}</span>
+          </button>
+        </template>
       </aside>
 
       <!-- 右侧：全量展示所有分类与站点 -->
       <section class="site-section">
         <div v-if="loading" class="site-grid">
-          <n-skeleton v-for="item in 6" :key="item" height="106px" round />
+          <div v-for="item in 12" :key="item" class="skel skel-card"></div>
         </div>
         <template v-else-if="filteredCategories.length">
           <div
@@ -89,7 +98,7 @@ import { getNavigation, type NavigationData, type PublicCategory } from '@/api/p
 
 const keyword = ref('')
 const activeCategory = ref('')
-const loading = ref(false)
+const loading = ref(true)
 const navigation = ref<NavigationData | null>(null)
 const contentShellRef = ref<HTMLElement | null>(null)
 
@@ -253,6 +262,45 @@ onUnmounted(() => {
 
 .section-title h2 {
   font-size: 24px;
+}
+
+/* ── 骨架屏 ─────────────────────────────────────────────────── */
+
+@keyframes skel-shine {
+  0%   { opacity: 0.45; }
+  50%  { opacity: 0.9; }
+  100% { opacity: 0.45; }
+}
+
+.skel {
+  background: var(--border);
+  animation: skel-shine 1.4s ease-in-out infinite;
+}
+
+/* 分类面板占位行 */
+.cat-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+}
+
+.skel-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skel-bar {
+  height: 14px;
+  border-radius: 7px;
+}
+
+/* 站点卡片占位块 */
+.skel-card {
+  height: 66px;
+  border-radius: 16px;
 }
 
 /* ── 站点卡片紧凑化（:deep 覆盖全局样式）─────────────────────── */

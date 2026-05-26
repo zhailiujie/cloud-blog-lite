@@ -34,10 +34,12 @@
       </n-form-item>
       <n-form-item label="Logo 地址">
         <n-input-group>
-          <n-input v-model:value="form.logo" placeholder="可填写图片 URL 或上传图片" />
+          <n-input v-model:value="form.logo" placeholder="可填写图片 URL、自动获取 favicon 或上传图片" />
+          <n-button :loading="fetchingFavicon" @click="handleFetchFavicon">自动获取 favicon</n-button>
           <n-upload :show-file-list="false" :custom-request="handleLogoUpload">
             <n-button>上传</n-button>
           </n-upload>
+          <n-button @click="form.logo = ''">清空</n-button>
         </n-input-group>
       </n-form-item>
       <n-grid :cols="2" :x-gap="12">
@@ -81,6 +83,7 @@ const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
 const saving = ref(false)
+const fetchingFavicon = ref(false)
 const showModal = ref(false)
 const editingId = ref<string | null>(null)
 const categories = ref<Category[]>([])
@@ -271,6 +274,39 @@ async function loadSites() {
     sites.value = await getSites({ keyword: query.keyword, categoryId: query.categoryId || undefined })
   } finally {
     loading.value = false
+  }
+}
+
+function buildFaviconUrl(value: string) {
+  try {
+    const url = new URL(value.trim())
+    return `${url.origin}/favicon.ico`
+  } catch {
+    return ''
+  }
+}
+
+async function handleFetchFavicon() {
+  const faviconUrl = buildFaviconUrl(form.url || '')
+  if (!faviconUrl) {
+    message.warning('请先填写有效的站点 URL')
+    return
+  }
+
+  fetchingFavicon.value = true
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('favicon not found'))
+      img.src = faviconUrl
+    })
+    form.logo = faviconUrl
+    message.success('已获取 favicon')
+  } catch {
+    message.warning('未获取到可用 favicon，可手动上传图标')
+  } finally {
+    fetchingFavicon.value = false
   }
 }
 

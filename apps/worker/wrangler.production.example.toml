@@ -1,18 +1,15 @@
 name = "cloud-blog-lite-api"
 main = "src/index.ts"
 compatibility_date = "2024-06-01"
-
-# This file is safe to commit. Keep production-only values in:
-# apps/worker/wrangler.production.toml
-#
-# Copy apps/worker/wrangler.production.example.toml to
-# apps/worker/wrangler.production.toml before deploying production.
+routes = [
+  { pattern = "blog.<your-domain>.com/api/*", zone_name = "<your-domain>.com" }
+]
 
 [vars]
 APP_NAME = "cloud-blog-lite-worker"
 COOKIE_NAME = "cloud_blog_token"
-BACKUP_EMAIL_TO = ""
-BACKUP_EMAIL_FROM = ""
+BACKUP_EMAIL_TO = "<your-email>"
+BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@<your-domain>.com>"
 
 [triggers]
 # Cloudflare Cron uses UTC. 17:00 UTC equals 01:00 Beijing time (UTC+8).
@@ -21,7 +18,7 @@ crons = ["0 17 * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "cloud-blog-lite"
-database_id = "local-development-placeholder"
+database_id = "<D1_DATABASE_ID>"
 
 [[r2_buckets]]
 binding = "R2"

@@ -14,12 +14,22 @@ build/
 .wrangler/
 .dev.vars
 .dev.vars.*
+!.dev.vars.example
+apps/worker/.dev.vars
+apps/worker/.dev.vars.*
+!apps/worker/.dev.vars.example
+apps/worker/wrangler.production.toml
+apps/worker/wrangler.*.local.toml
 
 # Environment variables and secrets
 .env
 .env.*
+apps/web/.env.local
+apps/web/.env.*.local
 !.env.example
 !.env.*.example
+!apps/web/.env.example
+!apps/web/.env.*.example
 
 # Logs
 logs/

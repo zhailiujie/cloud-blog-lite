@@ -23,7 +23,7 @@ import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 
-const TURNSTILE_SITE_KEY = '0x4AAAAAADVriFpke3k5uAbM'
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADVriFpke3k5uAbM'
 const TURNSTILE_SCRIPT_ID = 'cloudflare-turnstile-script'
 const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 
@@ -83,6 +83,11 @@ function resetTurnstile() {
   }
 }
 
+function getLoginErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } }).response?.data?.message
+  return responseMessage || '登录失败，请检查用户名、密码或人机验证'
+}
+
 async function handleLogin() {
   if (!form.username || !form.password) {
     message.warning('请输入用户名和密码')
@@ -99,7 +104,7 @@ async function handleLogin() {
     router.push('/admin')
   } catch (error) {
     resetTurnstile()
-    message.error('登录失败，请检查用户名、密码或人机验证')
+    message.error(getLoginErrorMessage(error))
   }
 }
 

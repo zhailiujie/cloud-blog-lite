@@ -122,10 +122,10 @@ database_name = "cloud-blog-lite"
 database_id = "<D1_DATABASE_ID>"
 ```
 
-将真实 `database_id` 写入：
+将真实 `database_id` 写入本地生产配置：
 
 ```text
-apps/worker/wrangler.toml
+apps/worker/wrangler.production.toml
 ```
 
 注意：公开文档中必须写成：
@@ -148,7 +148,7 @@ Bucket 名称：
 cloud-blog-lite-files
 ```
 
-`wrangler.toml` 中配置：
+`wrangler.toml` 和 `wrangler.production.toml` 中都需要配置 R2 绑定；其中真实生产部署以 `wrangler.production.toml` 为准：
 
 ```toml
 [[r2_buckets]]
@@ -163,6 +163,7 @@ bucket_name = "cloud-blog-lite-files"
 ```text
 JWT_SECRET
 SITE_SECRET
+TURNSTILE_SECRET_KEY
 RESEND_API_KEY，可选，用于备份邮件
 ```
 
@@ -191,7 +192,17 @@ SITE_SECRET 必须长期保存到密码管理器。
 如果丢失，历史加密站点密码可能无法解密。
 ```
 
-### 5.3 RESEND_API_KEY
+### 5.3 TURNSTILE_SECRET_KEY
+
+用途：登录页 Cloudflare Turnstile 人机验证服务端校验。
+
+```bash
+pnpm --filter @cloud-blog-lite/worker exec wrangler secret put TURNSTILE_SECRET_KEY
+```
+
+注意：Turnstile `site_key` 是公开前端配置，`Secret Key` 只能放在 Worker Secret 中，不能写入代码、文档或 Git。
+
+### 5.4 RESEND_API_KEY
 
 用途：通过 Resend 发送备份邮件。
 
@@ -214,39 +225,55 @@ docs
 
 ## 6. 配置 Worker 变量和 Cron
 
-`apps/worker/wrangler.toml` 会提交到 GitHub。提交前应使用占位符，不要写入真实个人域名和邮箱。
+当前项目将 Worker 配置拆成两类：
 
-提交到仓库的示例：
+```text
+apps/worker/wrangler.toml                    可提交到 Git 的安全默认配置
+apps/worker/wrangler.production.example.toml 生产配置示例，可提交
+apps/worker/wrangler.production.toml         本地真实生产配置，不提交
+apps/worker/.dev.vars.example                本地 Secret 示例，可提交
+apps/worker/.dev.vars                        本地 Secret， 不提交
+```
+
+### 6.1 可提交的默认配置
+
+`apps/worker/wrangler.toml` 不应包含真实域名、邮箱、D1 database_id 或 Secret。它只保留安全默认值和占位符：
 
 ```toml
 name = "cloud-blog-lite-api"
 main = "src/index.ts"
 compatibility_date = "2024-06-01"
-routes = [
-  { pattern = "blog.**.com/api/*", zone_name = "**.com" }
-]
 
 [vars]
 APP_NAME = "cloud-blog-lite-worker"
 COOKIE_NAME = "cloud_blog_token"
-BACKUP_EMAIL_TO = "**@**.com"
-BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@**.com>"
+BACKUP_EMAIL_TO = ""
+BACKUP_EMAIL_FROM = ""
 
 [triggers]
-# Cloudflare Cron 使用 UTC。17:00 UTC 等于北京时间 01:00。
 crons = ["0 17 * * *"]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "cloud-blog-lite"
-database_id = "<D1_DATABASE_ID>"
-
-[[r2_buckets]]
-binding = "R2"
-bucket_name = "cloud-blog-lite-files"
+database_id = "local-development-placeholder"
 ```
 
-本地部署前需要把占位符改成自己的真实域名和邮箱，例如：
+### 6.2 本地生产部署配置
+
+首次部署或换机器部署前，复制示例文件：
+
+```bash
+cp apps/worker/wrangler.production.example.toml apps/worker/wrangler.production.toml
+```
+
+Windows PowerShell：
+
+```powershell
+Copy-Item apps/worker/wrangler.production.example.toml apps/worker/wrangler.production.toml
+```
+
+然后只在 `apps/worker/wrangler.production.toml` 中填写真实生产值：
 
 ```toml
 routes = [
@@ -255,14 +282,81 @@ routes = [
 
 BACKUP_EMAIL_TO = "<your-email>"
 BACKUP_EMAIL_FROM = "cloud-blog-lite <backup@<your-domain>.com>"
+database_id = "<D1_DATABASE_ID>"
 ```
 
-注意：本地真实值用于部署，不建议提交到公开仓库。
+`apps/worker/wrangler.production.toml` 已加入 `.gitignore`，只用于本地部署，不提交 Git。
+
+### 6.3 本地开发 Secret
+
+本地 Worker 开发可复制：
+
+```bash
+cp apps/worker/.dev.vars.example apps/worker/.dev.vars
+```
+
+并填写本地开发用 Secret。`.dev.vars` 已加入 `.gitignore`，不要提交。
+
+### 6.4 新电脑 clone 后需要创建的本地文件
+
+以下文件包含本地状态、真实生产配置或 Secret，不会提交到 Git。因此在新电脑重新 clone 项目后，需要按需手动创建。
+
+| 文件/目录 | 是否必须 | 创建方式 | 用途 | 是否提交 |
+| --- | --- | --- | --- | --- |
+| `node_modules/` | 必须 | `pnpm install` | 安装依赖，用于构建、类型检查、部署 | 否 |
+| `apps/worker/wrangler.production.toml` | 生产部署必须 | 从 `apps/worker/wrangler.production.example.toml` 复制 | 保存真实生产 Worker Route、D1 ID、邮件变量等 | 否 |
+| `apps/worker/.dev.vars` | 本地跑 Worker 时需要 | 从 `apps/worker/.dev.vars.example` 复制 | 保存本地 Worker Secret，例如 JWT、加密密钥、Turnstile Secret | 否 |
+| `apps/web/.env.development.local` | 本地前端请求本地 Worker 时需要 | 从 `apps/web/.env.example` 复制 | 配置本地前端 API 代理和本地 Turnstile 测试 Site Key | 否 |
+| `.wrangler/` | 不需要手动创建 | Wrangler 自动生成 | Wrangler 本地状态 | 否 |
+| `apps/web/dist/` | 不需要手动创建 | `pnpm build:web` 自动生成 | 前端构建产物 | 否 |
+
+新电脑初始化推荐步骤：
+
+```bash
+pnpm install
+cp apps/worker/wrangler.production.example.toml apps/worker/wrangler.production.toml
+cp apps/worker/.dev.vars.example apps/worker/.dev.vars
+cp apps/web/.env.example apps/web/.env.development.local
+```
+
+Windows PowerShell：
+
+```powershell
+pnpm install
+Copy-Item apps/worker/wrangler.production.example.toml apps/worker/wrangler.production.toml
+Copy-Item apps/worker/.dev.vars.example apps/worker/.dev.vars
+Copy-Item apps/web/.env.example apps/web/.env.development.local
+```
+
+然后根据实际环境填写：
+
+```text
+1. apps/worker/wrangler.production.toml：填写真实生产域名、Zone、D1 database_id、备份邮箱等。
+2. apps/worker/.dev.vars：填写本地开发 Secret。
+3. apps/web/.env.development.local：本地前端通过 Vite proxy 请求本地 Worker，保留 `VITE_API_BASE=/api`；本地 Turnstile 使用官方测试 `VITE_TURNSTILE_SITE_KEY`；生产构建通常不需要设置。
+```
+
+注意：
+
+```text
+1. 这些本地文件都不应提交 Git。
+2. 如果只是修改代码并由 Cloudflare Pages 自动构建，通常只需要 pnpm install。
+3. 如果需要从新电脑手动部署 Worker，必须先创建并填写 apps/worker/wrangler.production.toml。
+4. Cloudflare Worker Secret 存在 Cloudflare 远端，不在 Git 中；新电脑只需要 wrangler login 后即可查看/部署。如果换了 Cloudflare 账号或 Worker，需要重新 wrangler secret put。
+```
 
 ## 7. 执行远程 D1 Migration
 
+远程迁移使用本地生产配置文件：
+
 ```bash
 pnpm d1:migrate:remote
+```
+
+该命令会读取：
+
+```text
+apps/worker/wrangler.production.toml
 ```
 
 预期结果：
@@ -274,15 +368,23 @@ pnpm d1:migrate:remote
 
 ## 8. 部署 Worker
 
+部署 Worker 使用本地生产配置文件：
+
 ```bash
 pnpm deploy:worker
+```
+
+该命令最终执行：
+
+```bash
+wrangler deploy --config wrangler.production.toml
 ```
 
 如果遇到 pnpm 9 内置 `deploy` 命令冲突，根项目脚本应使用：
 
 ```json
 {
-  "deploy:worker": "pnpm --filter @cloud-blog-lite/worker run deploy"
+  "deploy:worker": "pnpm --filter @cloud-blog-lite/worker run deploy:production"
 }
 ```
 
@@ -343,7 +445,7 @@ Workers & Pages → Pages → Create project → Connect to Git
 Root directory: /
 Build command: pnpm build:web
 Build output directory: apps/web/dist
-Environment variable: VITE_API_BASE=/api
+Environment variable: VITE_API_BASE=/api 或不设置，生产默认使用 /api
 ```
 
 ## 10. 绑定访问域名
@@ -515,6 +617,7 @@ git push
 ```text
 apps/worker/src/**
 apps/worker/wrangler.toml
+apps/worker/wrangler.production.example.toml
 apps/worker/migrations/**
 ```
 
@@ -566,14 +669,16 @@ Secret 不提交 Git，只在 Cloudflare 中配置：
 pnpm --filter @cloud-blog-lite/worker exec wrangler secret put SECRET_NAME
 ```
 
-如果 Worker 变量在 `wrangler.toml` 中变更，则需要：
+如果 Worker 公共变量模板在 `wrangler.toml` 或 `wrangler.production.example.toml` 中变更，则需要：
 
 ```bash
 pnpm deploy:worker
-git add apps/worker/wrangler.toml docs
+git add apps/worker/wrangler.toml apps/worker/wrangler.production.example.toml docs
 git commit -m "chore: update worker config"
 git push
 ```
+
+如果只修改了本地真实生产值，应只改 `apps/worker/wrangler.production.toml`，不要提交。
 
 ## 15. 部署排错与注意事项
 
@@ -674,7 +779,7 @@ pnpm --filter @cloud-blog-lite/worker exec wrangler secret list
 
 ### 15.5 Worker Route 的 zone_name 不能使用占位值
 
-`apps/worker/wrangler.toml` 中的 Worker Route 示例通常会使用占位符：
+`apps/worker/wrangler.production.example.toml` 中的 Worker Route 示例会使用占位符：
 
 ```toml
 routes = [
@@ -693,8 +798,8 @@ Make sure the domain is set up to be proxied by Cloudflare.
 
 ```text
 1. 到 Cloudflare Dashboard 确认当前站点所属 Zone。
-2. 将 wrangler.toml 中的 route pattern 和 zone_name 改成本地部署所需真实值。
-3. 部署成功后，提交前按脱敏规则处理，不要把不应公开的真实值写入公开仓库。
+2. 将 `apps/worker/wrangler.production.toml` 中的 route pattern 和 zone_name 改成本地部署所需真实值。
+3. `apps/worker/wrangler.production.toml` 已加入 `.gitignore`，不要提交真实生产值。
 ```
 
 ### 15.6 Worker 上传成功但路由绑定失败时要看完整日志

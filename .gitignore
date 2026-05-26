@@ -60,6 +60,8 @@ coverage/
 # IDE / editor
 .vscode/
 .idea/
+.zed/
+AGENTS.md
 *.swp
 *.swo
 

@@ -32,11 +32,25 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+
+  if (to.path === '/login') {
+    if (auth.user) {
+      return '/admin'
+    }
+
+    try {
+      await auth.fetchMe()
+      return '/admin'
+    } catch {
+      return true
+    }
+  }
+
   if (!to.meta.requiresAuth) {
     return true
   }
 
-  const auth = useAuthStore()
   if (auth.user) {
     return true
   }

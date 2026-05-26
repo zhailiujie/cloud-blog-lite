@@ -3,7 +3,7 @@
     <n-button type="primary" @click="openCreate">新增站点</n-button>
   </PageHeader>
 
-  <n-card class="mb-16">
+  <n-card class="mb-16 filter-card">
     <n-space align="center">
       <n-input v-model:value="query.keyword" clearable placeholder="搜索站点名称、描述或 URL" class="filter-input" />
       <n-select v-model:value="query.categoryId" clearable placeholder="选择分类" :options="categoryOptions" class="filter-select" />
@@ -13,12 +13,47 @@
 
   <n-card>
     <n-data-table
+      class="desktop-table"
       :columns="columns"
       :data="sites"
       :loading="loading"
       :pagination="{ pageSize: 10 }"
       :scroll-x="1280"
     />
+    <div class="mobile-card-list">
+      <div v-for="site in sites" :key="site.id" class="mobile-data-card">
+        <div class="mobile-card-head">
+          <div>
+            <strong>{{ site.name }}</strong>
+            <small>{{ site.categoryName || '未分类' }}</small>
+          </div>
+          <n-switch :value="site.visible === 1" disabled />
+        </div>
+        <div class="mobile-card-row">
+          <span>URL</span>
+          <a :href="site.url" target="_blank" rel="noopener noreferrer">{{ formatDisplayUrl(site.url) }}</a>
+        </div>
+        <div v-if="site.account" class="mobile-card-row">
+          <span>账号</span>
+          <b>{{ site.account }}</b>
+        </div>
+        <div v-if="site.password" class="mobile-card-row">
+          <span>密码</span>
+          <b>{{ visiblePasswords[site.id] ? site.password : '••••••••' }}</b>
+        </div>
+        <div class="mobile-card-row">
+          <span>排序</span>
+          <b>{{ site.sort }}</b>
+        </div>
+        <n-space justify="end">
+          <n-button v-if="site.password" size="small" @click="visiblePasswords[site.id] = !visiblePasswords[site.id]">
+            {{ visiblePasswords[site.id] ? '隐藏密码' : '显示密码' }}
+          </n-button>
+          <n-button size="small" @click="openEdit(site)">编辑</n-button>
+          <n-button size="small" type="error" ghost @click="confirmDelete(site)">删除</n-button>
+        </n-space>
+      </div>
+    </div>
   </n-card>
 
   <n-modal v-model:show="showModal" preset="card" :title="editingId ? '编辑站点' : '新增站点'" class="form-modal large">
@@ -33,7 +68,7 @@
         <n-input v-model:value="form.url" placeholder="https://example.com" />
       </n-form-item>
       <n-form-item label="Logo 地址">
-        <n-input-group>
+        <n-input-group class="logo-input-group">
           <n-input v-model:value="form.logo" placeholder="可填写图片 URL、自动获取 favicon 或上传图片" />
           <n-button :loading="fetchingFavicon" @click="handleFetchFavicon">自动获取 favicon</n-button>
           <n-upload :show-file-list="false" :custom-request="handleLogoUpload">

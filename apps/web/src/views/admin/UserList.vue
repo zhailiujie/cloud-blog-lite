@@ -4,7 +4,31 @@
   </PageHeader>
 
   <n-card>
-    <n-data-table :columns="columns" :data="users" :loading="loading" :pagination="{ pageSize: 10 }" />
+    <n-data-table class="desktop-table" :columns="columns" :data="users" :loading="loading" :pagination="{ pageSize: 10 }" :scroll-x="920" />
+    <div class="mobile-card-list">
+      <div v-for="user in users" :key="user.id" class="mobile-data-card">
+        <div class="mobile-card-head">
+          <div>
+            <strong>{{ user.username }}</strong>
+            <small>{{ user.nickname || '未设置昵称' }}</small>
+          </div>
+          <n-tag :type="user.role === 'admin' ? 'error' : user.role === 'editor' ? 'info' : 'default'" :bordered="false">
+            {{ user.role }}
+          </n-tag>
+        </div>
+        <div class="mobile-card-row">
+          <span>状态</span>
+          <n-switch :value="user.status === 1" :disabled="user.role === 'admin'" @update:value="handleStatusChange(user, $event)" />
+        </div>
+        <div class="mobile-card-row"><span>失败次数</span><b>{{ user.loginErrorCount }}</b></div>
+        <div class="mobile-card-row"><span>最后登录</span><b>{{ user.lastLoginAt || '-' }}</b></div>
+        <n-space justify="end" class="mobile-card-actions">
+          <n-button size="small" @click="openEdit(user)">编辑</n-button>
+          <n-button size="small" @click="openReset(user)">重置密码</n-button>
+          <n-button size="small" type="error" ghost @click="confirmDelete(user)">删除</n-button>
+        </n-space>
+      </div>
+    </div>
   </n-card>
 
   <n-modal v-model:show="showModal" preset="card" :title="editingId ? '编辑用户' : '新增用户'" class="form-modal">

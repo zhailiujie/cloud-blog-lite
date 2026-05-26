@@ -29,6 +29,12 @@ publicRoutes.get('/navigation', async (c) => {
     `SELECT id, parent_id, name, icon, sort, level
      FROM categories
      WHERE visible = 1
+       AND EXISTS (
+         SELECT 1
+         FROM sites
+         WHERE sites.category_id = categories.id
+           AND sites.visible = 1
+       )
      ORDER BY sort ASC, created_at ASC`,
   ).all<CategoryRow>()
 

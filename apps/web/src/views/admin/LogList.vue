@@ -3,7 +3,21 @@
     <n-button @click="handleCleanup">清理 90 天前日志</n-button>
   </PageHeader>
   <n-card>
-    <n-data-table :columns="columns" :data="logs" :loading="loading" :pagination="{ pageSize: 10 }" />
+    <n-data-table class="desktop-table" :columns="columns" :data="logs" :loading="loading" :pagination="{ pageSize: 10 }" :scroll-x="900" />
+    <div class="mobile-card-list">
+      <div v-for="log in logs" :key="log.id" class="mobile-data-card">
+        <div class="mobile-card-head">
+          <div>
+            <strong>{{ log.description || log.action }}</strong>
+            <small>{{ log.createdAt }}</small>
+          </div>
+          <n-tag type="info" :bordered="false">{{ log.action }}</n-tag>
+        </div>
+        <div class="mobile-card-row"><span>用户</span><b>{{ log.username || 'system' }}</b></div>
+        <div class="mobile-card-row"><span>模块</span><b>{{ log.module || '-' }}</b></div>
+        <div class="mobile-card-row"><span>IP</span><b>{{ log.ip || '-' }}</b></div>
+      </div>
+    </div>
   </n-card>
 </template>
 

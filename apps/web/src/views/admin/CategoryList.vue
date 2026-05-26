@@ -4,7 +4,25 @@
   </PageHeader>
 
   <n-card>
-    <n-data-table :columns="columns" :data="categories" :loading="loading" :pagination="{ pageSize: 10 }" />
+    <n-data-table class="desktop-table" :columns="columns" :data="categories" :loading="loading" :pagination="{ pageSize: 10 }" :scroll-x="760" />
+    <div class="mobile-card-list">
+      <div v-for="category in categories" :key="category.id" class="mobile-data-card">
+        <div class="mobile-card-head">
+          <div>
+            <strong>{{ category.name }}</strong>
+            <small>{{ category.icon || '无图标' }}</small>
+          </div>
+          <n-switch :value="category.visible === 1" disabled />
+        </div>
+        <div class="mobile-card-row"><span>父级</span><b>{{ category.parentId }}</b></div>
+        <div class="mobile-card-row"><span>排序</span><b>{{ category.sort }}</b></div>
+        <div class="mobile-card-row"><span>层级</span><b>{{ category.level }}</b></div>
+        <n-space justify="end">
+          <n-button size="small" @click="openEdit(category)">编辑</n-button>
+          <n-button size="small" type="error" ghost @click="confirmDelete(category)">删除</n-button>
+        </n-space>
+      </div>
+    </div>
   </n-card>
 
   <n-modal v-model:show="showModal" preset="card" :title="editingId ? '编辑分类' : '新增分类'" class="form-modal">

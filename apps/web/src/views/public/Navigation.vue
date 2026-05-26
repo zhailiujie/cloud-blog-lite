@@ -6,7 +6,7 @@
         <div v-else class="brand-mark">Y</div>
         <div>
           <strong>{{ navigation?.settings.title || 'cloud-blog-lite' }}</strong>
-          <span>Cloudflare 导航站</span>
+          <span>Cloudflare 网址导航</span>
         </div>
       </div>
       <n-space align="center">
@@ -16,8 +16,8 @@
     </header>
 
     <section class="landing-hero">
-      <h1>私藏<span class="hero-accent">好站</span>，触手可及</h1>
-      <p>{{ navigation?.settings.description || '精选工具与资源，分类整理，一键直达。' }}</p>
+      <!--<h1>精选<span class="hero-accent">资源</span>，一键直达</h1>-->
+      <!--<p>{{ navigation?.settings.description || '精选工具与资源，分类整理，一键直达。' }}</p>-->
       <div class="search-card glass-panel">
         <n-input v-model:value="keyword" size="large" round placeholder="搜索站点、工具或资源">
           <template #prefix>🔎</template>
@@ -175,6 +175,7 @@ onMounted(async () => {
   loading.value = true
   try {
     navigation.value = await getNavigation()
+    document.title = navigation.value?.settings.title || 'cloud-blog-lite'
   } finally {
     loading.value = false
   }
@@ -331,5 +332,90 @@ onUnmounted(() => {
 :deep(.site-main p) {
   font-size: 12px;
   line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .landing-nav {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+    border-radius: 18px;
+  }
+
+  .landing-nav :deep(.n-space) {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .nav-brand {
+    min-width: 0;
+  }
+
+  .landing-hero {
+    margin-top: 36px;
+    margin-bottom: 28px;
+    text-align: left;
+  }
+
+  .landing-hero h1 {
+    font-size: clamp(30px, 10vw, 42px);
+    line-height: 1.08;
+  }
+
+  .landing-hero p {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .search-card {
+    max-width: none;
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  .content-shell {
+    gap: 16px;
+  }
+
+  .category-panel {
+    margin: 0 -16px;
+    padding: 8px 16px;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+    scrollbar-width: none;
+  }
+
+  .category-panel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-item {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 8px 10px;
+  }
+
+  .cat-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .category-block {
+    margin-bottom: 36px;
+  }
+
+  .section-title {
+    margin-bottom: 12px;
+  }
+
+  .site-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :deep(.site-card) {
+    padding: 12px;
+  }
 }
 </style>

@@ -2,7 +2,7 @@
   <n-layout has-sider class="admin-layout">
     <n-layout-sider bordered collapse-mode="width" :collapsed-width="64" :width="230">
       <div class="brand">
-        <div class="brand-mark small">Y</div>
+        <img class="brand-logo" :src="siteLogo" alt="logo" />
         <div>
           <strong>cloud-blog-lite</strong>
           <span>管理后台</span>
@@ -30,15 +30,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue'
+import { computed, h, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
 import { useAuthStore } from '@/stores/auth'
+import { getSettings } from '@/api/settings'
 
 const router = useRouter()
 const message = useMessage()
 const auth = useAuthStore()
+
+// 优先取后台上传的 logo，否则回退到本地 SVG
+const siteLogo = ref('/logo.svg')
+
+onMounted(async () => {
+  try {
+    const settings = await getSettings()
+    if (settings['site.logo']) siteLogo.value = settings['site.logo']
+  } catch {
+    // 保持 /logo.svg 兜底，不影响布局
+  }
+})
 const link = (label: string, to: string) => () => h(RouterLink, { to }, { default: () => label })
 
 const menuOptions = computed(() => {

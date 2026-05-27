@@ -5,7 +5,7 @@ import { authRoutes } from "./modules/auth/routes";
 import { backupRoutes } from "./modules/backup/routes";
 import { categoryRoutes } from "./modules/category/routes";
 import { dashboardRoutes } from "./modules/dashboard/routes";
-import { debugRoutes } from "./modules/debug/routes";
+
 import { logRoutes } from "./modules/log/routes";
 import { publicRoutes } from "./modules/public/routes";
 import { settingRoutes } from "./modules/setting/routes";
@@ -30,15 +30,18 @@ app.route("/auth", authRoutes);
 app.use("/admin/*", authMiddleware);
 app.route("/admin/dashboard", dashboardRoutes);
 app.route("/admin/categories", categoryRoutes);
+app.use("/admin/users", requireRole(["admin"]));
 app.use("/admin/users/*", requireRole(["admin"]));
 app.route("/admin/users", userRoutes);
 app.route("/admin/sites", siteRoutes);
 app.route("/admin/upload", uploadRoutes);
 app.route("/admin/settings", settingRoutes);
+app.use("/admin/operation-logs/cleanup*", requireRole(["admin"]));
 app.route("/admin/operation-logs", logRoutes);
+app.use("/admin/backups", requireRole(["admin"]));
 app.use("/admin/backups/*", requireRole(["admin"]));
 app.route("/admin/backups", backupRoutes);
-app.route("/debug", debugRoutes);
+
 app.route("/setup", setupRoutes);
 
 app.get("/health", (c) => {

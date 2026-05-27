@@ -11,7 +11,8 @@ export async function writeOperationLog(env: Env, params: {
   ip?: string
   userAgent?: string
 }) {
-  await env.DB.prepare(
+  try {
+    await env.DB.prepare(
     `INSERT INTO operation_logs (
       id, user_id, username, action, module, description, detail, ip, user_agent, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -29,4 +30,7 @@ export async function writeOperationLog(env: Env, params: {
       nowIso(),
     )
     .run()
+  } catch (error) {
+    console.error('Failed to write operation log', error)
+  }
 }

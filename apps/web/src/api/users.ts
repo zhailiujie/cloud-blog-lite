@@ -1,4 +1,5 @@
-import { http } from './http'
+import { http, type ApiResponse } from './http'
+import { normalizePaginatedResult, type PaginatedResult } from './types'
 
 export type UserRole = 'admin' | 'editor' | 'viewer'
 
@@ -34,15 +35,11 @@ export interface UpdateUserPayload {
   remark?: string
 }
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
 
-export async function getUsers() {
-  const response = await http.get<ApiResponse<User[]>>('/admin/users')
-  return response.data.data || []
+
+export async function getUsers(params?: { page?: number; pageSize?: number }): Promise<PaginatedResult<User>> {
+  const response = await http.get<ApiResponse<User[] | PaginatedResult<User>>>('/admin/users', { params })
+  return normalizePaginatedResult(response.data.data, params?.page, params?.pageSize)
 }
 
 export async function createUser(payload: CreateUserPayload) {

@@ -1,28 +1,15 @@
 import type { Env } from "../env";
+import { fromBase64, toBase64 } from "./base64";
 
-function toBase64(bytes: ArrayBuffer | Uint8Array): string {
-  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let binary = "";
-  for (const byte of data) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
 
-function fromBase64(value: string): Uint8Array {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1)
-    bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
 
 async function getKey(env: Env) {
-  const secret =
-    env.SITE_SECRET ||
-    env.JWT_SECRET ||
-    "local-development-site-secret-change-before-production";
+  if (!env.SITE_SECRET) {
+    throw new Error("SITE_SECRET is not configured");
+  }
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(secret),
+    new TextEncoder().encode(env.SITE_SECRET),
   );
   return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, [
     "encrypt",

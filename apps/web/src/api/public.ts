@@ -1,4 +1,4 @@
-import { http } from './http'
+import { http, type ApiResponse } from './http'
 
 export interface PublicSite {
   id: string
@@ -30,11 +30,7 @@ export interface NavigationData {
   categories: PublicCategory[]
 }
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
+
 
 export async function getNavigation() {
   const response = await http.get<ApiResponse<NavigationData>>('/public/navigation')

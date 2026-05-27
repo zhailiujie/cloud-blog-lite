@@ -1,4 +1,5 @@
 import type { Env } from "../../env";
+import { toBase64 } from "../../utils/base64";
 
 const TABLES = ["users", "categories", "sites", "settings"] as const;
 
@@ -68,7 +69,7 @@ async function listR2Objects(env: Env): Promise<R2ObjectSnapshot[]> {
   let cursor: string | undefined;
 
   do {
-    const result = await env.R2.list({ cursor });
+    const result = await env.R2.list({ cursor, prefix: "backups/" });
     for (const object of result.objects) {
       objects.push({
         key: object.key,
@@ -94,15 +95,7 @@ async function gzipJson(payload: BackupPayload): Promise<Uint8Array> {
   return new Uint8Array(compressed);
 }
 
-function uint8ToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
-}
+
 
 async function sendBackupEmail(
   env: Env,
@@ -141,7 +134,7 @@ async function sendBackupEmail(
       attachments: [
         {
           filename: fileName,
-          content: uint8ToBase64(bytes),
+          content: toBase64(bytes),
         },
       ],
     }),

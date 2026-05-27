@@ -19,13 +19,13 @@
       <n-form-item label="页脚文案">
         <n-input v-model:value="form['site.footer_text']" />
       </n-form-item>
-      <n-button type="primary" :loading="saving" @click="handleSave">保存设置</n-button>
+      <n-button type="primary" :loading="saving" :disabled="!isDirty" @click="handleSave">保存设置</n-button>
     </n-form>
   </n-card>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { getSettings, updateSettings } from '@/api/settings'
@@ -40,9 +40,17 @@ const form = reactive<Record<string, string>>({
   'site.footer_text': '',
 })
 
+const originalForm = ref<Record<string, string>>({})
+const isDirty = computed(() => JSON.stringify(form) !== JSON.stringify(originalForm.value))
+
 async function loadSettings() {
-  const data = await getSettings()
-  Object.assign(form, data)
+  try {
+    const data = await getSettings()
+    Object.assign(form, data)
+    originalForm.value = { ...form }
+  } catch {
+    message.error('加载失败，请刷新重试')
+  }
 }
 
 async function handleLogoUpload(options: { file: { file?: File | null }; onFinish?: () => void; onError?: () => void }) {
@@ -50,7 +58,10 @@ async function handleLogoUpload(options: { file: { file?: File | null }; onFinis
   if (!file) return
   try {
     const result = await uploadFile(file)
-    form['site.logo'] = result?.url || ''
+    if (!result?.url) {
+      throw new Error('上传成功但未返回文件地址')
+    }
+    form['site.logo'] = result.url
     message.success('Logo 上传成功')
     options.onFinish?.()
   } catch (error) {
@@ -63,7 +74,10 @@ async function handleSave() {
   saving.value = true
   try {
     await updateSettings(form)
+    originalForm.value = { ...form }
     message.success('设置已保存')
+  } catch {
+    message.error('保存失败')
   } finally {
     saving.value = false
   }

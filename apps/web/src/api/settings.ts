@@ -1,10 +1,6 @@
-import { http } from './http'
+import { http, type ApiResponse } from './http'
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
+
 
 export type SettingsMap = Record<string, string>
 

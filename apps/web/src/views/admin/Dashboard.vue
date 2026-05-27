@@ -15,9 +15,9 @@
     <n-card title="最近站点" :loading="loading">
       <n-empty v-if="!stats?.recentSites.length" description="暂无站点" />
       <div v-else class="compact-list">
-        <a v-for="site in stats.recentSites" :key="site.id" :href="site.url" target="_blank" rel="noreferrer">
+        <a v-for="site in stats.recentSites" :key="site.id" :href="safeUrl(site.url)" target="_blank" rel="noreferrer">
           <span>{{ site.name }}</span>
-          <small>{{ site.category_name || '未分类' }}</small>
+          <small>{{ site.categoryName ?? site.category_name ?? '未分类' }}</small>
         </a>
       </div>
     </n-card>
@@ -27,7 +27,7 @@
       <div v-else class="compact-list">
         <div v-for="log in stats.recentLogs" :key="log.id">
           <span>{{ log.description || log.action }}</span>
-          <small>{{ log.username || 'system' }} · {{ log.created_at }}</small>
+          <small>{{ log.username || 'system' }} · {{ log.createdAt ?? log.created_at }}</small>
         </div>
       </div>
     </n-card>
@@ -36,16 +36,25 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useMessage } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { getDashboardStats, type DashboardStats } from '@/api/dashboard'
 
+const message = useMessage()
 const loading = ref(false)
 const stats = ref<DashboardStats | null>(null)
+
+function safeUrl(value: string) {
+  const url = value.trim()
+  return url.startsWith('http://') || url.startsWith('https://') ? url : '#'
+}
 
 async function loadStats() {
   loading.value = true
   try {
     stats.value = await getDashboardStats()
+  } catch {
+    message.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }

@@ -1,4 +1,5 @@
 import type { Env } from '../env'
+import { fromBase64Url, toBase64Url } from './base64'
 
 export interface JwtPayload {
   sub: string
@@ -8,38 +9,30 @@ export interface JwtPayload {
   exp: number
 }
 
-function toBase64Url(bytes: ArrayBuffer | Uint8Array): string {
-  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
-  let binary = ''
-  for (const byte of data) {
-    binary += String.fromCharCode(byte)
-  }
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
-}
 
-function fromBase64Url(value: string): Uint8Array {
-  const base64 = value.replaceAll('-', '+').replaceAll('_', '/')
-  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
-  const binary = atob(padded)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-  return bytes
-}
+
+const cachedKeys = new Map<string, CryptoKey>()
 
 async function getSecretKey(secret: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
+  const cached = cachedKeys.get(secret)
+  if (cached) return cached
+
+  const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign', 'verify'],
   )
+  cachedKeys.set(secret, key)
+  return key
 }
 
 function getJwtSecret(env: Env): string {
-  return env.JWT_SECRET || 'local-development-jwt-secret-change-before-production'
+  if (!env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured')
+  }
+  return env.JWT_SECRET
 }
 
 export async function signJwt(payload: Omit<JwtPayload, 'exp'>, env: Env, maxAgeSeconds: number): Promise<string> {

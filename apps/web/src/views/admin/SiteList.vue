@@ -31,7 +31,7 @@
         </div>
         <div class="mobile-card-row">
           <span>URL</span>
-          <a :href="site.url" target="_blank" rel="noopener noreferrer">{{ formatDisplayUrl(site.url) }}</a>
+          <a :href="safeUrl(site.url)" target="_blank" rel="noopener noreferrer">{{ formatDisplayUrl(site.url) }}</a>
         </div>
         <div v-if="site.account" class="mobile-card-row">
           <span>账号</span>
@@ -110,7 +110,7 @@
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import { NButton, NSpace, NSwitch, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
-import { getCategories, type Category } from '@/api/categories'
+import { getCategoryOptions, type Category } from '@/api/categories'
 import { createSite, deleteSite, getSites, updateSite, type Site, type SitePayload } from '@/api/sites'
 import { uploadFile } from '@/api/upload'
 
@@ -182,7 +182,8 @@ function formatDisplayUrl(value: string) {
   try {
     const url = new URL(value)
     const parts = url.hostname.split('.')
-    const host = parts.length > 2 ? parts[0] + '.***.' + parts.slice(-2).join('.') : url.hostname
+    const maskedHost = parts.length > 2 ? parts[0] + '.***.' + parts.slice(-2).join('.') : url.hostname
+    const host = url.port ? maskedHost + ':' + url.port : maskedHost
     return url.protocol + '//' + host
   } catch {
     return maskText(value, 28)
@@ -237,10 +238,15 @@ function renderPasswordToggleButton(visible: boolean, onClick: () => void) {
   })
 }
 
+function safeUrl(value: string) {
+  const url = value.trim()
+  return url.startsWith('http://') || url.startsWith('https://') ? url : '#'
+}
+
 function renderUrl(value: string) {
   return h(NSpace, { align: 'center', size: 4, wrap: false }, {
     default: () => [
-      h('a', { class: 'copy-text url-link', href: value, target: '_blank', rel: 'noopener noreferrer', title: value }, formatDisplayUrl(value)),
+      h('a', { class: 'copy-text url-link', href: safeUrl(value), target: '_blank', rel: 'noopener noreferrer', title: value }, formatDisplayUrl(value)),
       renderCopyButton(value),
     ],
   })
@@ -280,7 +286,16 @@ function resetForm() {
   form.visible = 1
 }
 
-function openCreate() {
+async function openCreate() {
+  if (!categories.value.length) {
+    await loadCategories()
+  }
+
+  if (!categories.value.length) {
+    message.warning('请先创建或加载分类后再新增站点')
+    return
+  }
+
   resetForm()
   showModal.value = true
 }
@@ -300,43 +315,72 @@ function openEdit(row: Site) {
 }
 
 async function loadCategories() {
-  categories.value = await getCategories()
+  try {
+    categories.value = await getCategoryOptions()
+  } catch {
+    message.error('分类加载失败，请刷新重试')
+  }
 }
 
 async function loadSites() {
   loading.value = true
   try {
     sites.value = await getSites({ keyword: query.keyword, categoryId: query.categoryId || undefined })
+  } catch {
+    message.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
 }
 
-function buildFaviconUrl(value: string) {
+function buildFaviconUrls(value: string) {
   try {
     const url = new URL(value.trim())
-    return `${url.origin}/favicon.ico`
+    return [`${url.origin}/favicon.ico`, `https://favicon.yandex.net/favicon/${url.host}`]
   } catch {
-    return ''
+    return []
   }
 }
 
+async function loadImageWithTimeout(src: string) {
+  await new Promise<void>((resolve, reject) => {
+    const img = new Image()
+    const timer = window.setTimeout(() => reject(new Error('favicon timeout')), 5000)
+    img.onload = () => {
+      window.clearTimeout(timer)
+      resolve()
+    }
+    img.onerror = () => {
+      window.clearTimeout(timer)
+      reject(new Error('favicon not found'))
+    }
+    img.src = src
+  })
+}
+
 async function handleFetchFavicon() {
-  const faviconUrl = buildFaviconUrl(form.url || '')
-  if (!faviconUrl) {
+  const faviconUrls = buildFaviconUrls(form.url || '')
+  if (!faviconUrls.length) {
     message.warning('请先填写有效的站点 URL')
     return
   }
 
   fetchingFavicon.value = true
   try {
-    await new Promise<void>((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => resolve()
-      img.onerror = () => reject(new Error('favicon not found'))
-      img.src = faviconUrl
-    })
-    form.logo = faviconUrl
+    let resolvedUrl = ''
+    for (const faviconUrl of faviconUrls) {
+      try {
+        await loadImageWithTimeout(faviconUrl)
+        resolvedUrl = faviconUrl
+        break
+      } catch {
+        // 尝试下一个 favicon 来源
+      }
+    }
+    if (!resolvedUrl) {
+      throw new Error('favicon not found')
+    }
+    form.logo = resolvedUrl
     message.success('已获取 favicon')
   } catch {
     message.warning('未获取到可用 favicon，可手动上传图标')
@@ -350,7 +394,10 @@ async function handleLogoUpload(options: { file: { file?: File | null }; onFinis
   if (!file) return
   try {
     const result = await uploadFile(file)
-    form.logo = result?.url || ''
+    if (!result?.url) {
+      throw new Error('上传成功但未返回文件地址')
+    }
+    form.logo = result.url
     message.success('Logo 上传成功')
     options.onFinish?.()
   } catch (error) {
@@ -384,15 +431,22 @@ async function handleSave() {
 }
 
 function confirmDelete(row: Site) {
-  dialog.warning({
+  const dialogInstance = dialog.warning({
     title: '确认删除',
     content: `确定删除站点「${row.name}」吗？`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      await deleteSite(row.id)
-      message.success('站点已删除')
-      await loadSites()
+      dialogInstance.loading = true
+      try {
+        await deleteSite(row.id)
+        message.success('站点已删除')
+        await loadSites()
+      } catch {
+        message.error('删除失败')
+      } finally {
+        dialogInstance.loading = false
+      }
     },
   })
 }

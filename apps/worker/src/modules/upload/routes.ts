@@ -11,8 +11,8 @@ const ALLOWED_TYPES = new Set([
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
   "image/x-icon",
+  // image/svg+xml 已移除：SVG 可内嵌 JS，允许上传可导致存储型 XSS
 ]);
 
 function getExt(file: File): string {
@@ -22,8 +22,8 @@ function getExt(file: File): string {
   if (file.type === "image/jpeg") return "jpg";
   if (file.type === "image/png") return "png";
   if (file.type === "image/webp") return "webp";
-  if (file.type === "image/svg+xml") return "svg";
   if (file.type === "image/gif") return "gif";
+  if (file.type === "image/x-icon") return "ico";
   return "bin";
 }
 
@@ -75,9 +75,14 @@ uploadRoutes.post("/", async (c) => {
 export const fileRoutes = new Hono<{ Bindings: Env }>();
 
 fileRoutes.get("/*", async (c) => {
-  const key = c.req.path.replace("/api/files/", "");
+  const key = c.req.param("*");
   if (!key) {
     return c.json(fail("File key is required", 400), 400);
+  }
+
+  // 拒绝访问备份目录，防止数据库快照被公开下载
+  if (key.startsWith("backups/")) {
+    return c.json(fail("Not found", 404), 404);
   }
 
   const object = await c.env.R2.get(key);

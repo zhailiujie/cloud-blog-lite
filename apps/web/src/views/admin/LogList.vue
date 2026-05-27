@@ -3,7 +3,15 @@
     <n-button @click="handleCleanup">清理 90 天前日志</n-button>
   </PageHeader>
   <n-card>
-    <n-data-table class="desktop-table" :columns="columns" :data="logs" :loading="loading" :pagination="{ pageSize: 10 }" :scroll-x="900" />
+    <n-data-table
+      class="desktop-table"
+      :columns="columns"
+      :data="logs"
+      :loading="loading"
+      :pagination="pagination"
+      remote
+      :scroll-x="900"
+    />
     <div class="mobile-card-list">
       <div v-for="log in logs" :key="log.id" class="mobile-data-card">
         <div class="mobile-card-head">
@@ -22,14 +30,31 @@
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue'
-import { NTag, useMessage, type DataTableColumns } from 'naive-ui'
+import { h, onMounted, reactive, ref } from 'vue'
+import { NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { cleanupOperationLogs, getOperationLogs, type OperationLog } from '@/api/logs'
 
 const message = useMessage()
+const dialog = useDialog()
 const loading = ref(false)
 const logs = ref<OperationLog[]>([])
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  itemCount: 0,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50],
+  onUpdatePage(page: number) {
+    pagination.page = page
+    void loadLogs()
+  },
+  onUpdatePageSize(pageSize: number) {
+    pagination.pageSize = pageSize
+    pagination.page = 1
+    void loadLogs()
+  },
+})
 
 const columns: DataTableColumns<OperationLog> = [
   { title: '时间', key: 'createdAt', width: 190 },
@@ -50,16 +75,32 @@ const columns: DataTableColumns<OperationLog> = [
 async function loadLogs() {
   loading.value = true
   try {
-    logs.value = await getOperationLogs()
+    const result = await getOperationLogs({ page: pagination.page, pageSize: pagination.pageSize })
+    logs.value = result.items
+    pagination.itemCount = result.total
+  } catch {
+    message.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
 }
 
-async function handleCleanup() {
-  const result = await cleanupOperationLogs(90)
-  message.success(`已清理 ${result?.deleted || 0} 条日志`)
-  await loadLogs()
+function handleCleanup() {
+  dialog.warning({
+    title: '确认清理日志',
+    content: '确定清理 90 天前的操作日志吗？该操作不可恢复。',
+    positiveText: '清理',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const result = await cleanupOperationLogs(90)
+        message.success(`已清理 ${result?.deleted || 0} 条日志`)
+        await loadLogs()
+      } catch {
+        message.error('清理失败')
+      }
+    },
+  })
 }
 
 onMounted(loadLogs)

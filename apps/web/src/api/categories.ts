@@ -1,4 +1,5 @@
-import { http } from './http'
+import { http, type ApiResponse } from './http'
+import { normalizePaginatedResult, type PaginatedResult } from './types'
 
 export interface Category {
   id: string
@@ -22,14 +23,15 @@ export interface CategoryPayload {
   visible?: number
 }
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
+
+
+export async function getCategories(params?: { page?: number; pageSize?: number }): Promise<PaginatedResult<Category>> {
+  const response = await http.get<ApiResponse<Category[] | PaginatedResult<Category>>>('/admin/categories', { params })
+  return normalizePaginatedResult(response.data.data, params?.page, params?.pageSize)
 }
 
-export async function getCategories() {
-  const response = await http.get<ApiResponse<Category[]>>('/admin/categories')
+export async function getCategoryOptions(): Promise<Category[]> {
+  const response = await http.get<ApiResponse<Category[]>>('/admin/categories/options')
   return response.data.data || []
 }
 

@@ -3,6 +3,7 @@ import type { Env } from '../../env'
 import type { AuthVariables } from '../../middleware/auth'
 import { createId, nowIso } from '../../utils/id'
 import { fail, ok } from '../../utils/response'
+import { parsePagination } from '../../utils/pagination'
 
 interface CategoryRow {
   id: string
@@ -44,7 +45,7 @@ function toCategory(row: CategoryRow) {
 function normalizeCategoryBody(body: CategoryRequest | null) {
   const name = body?.name?.trim()
   if (!name || name.length > 64) {
-    return { error: 'Category name is required and must be less than 64 characters' }
+    return { error: 'Category name is required and must be at most 64 characters' }
   }
 
   return {
@@ -59,9 +60,49 @@ function normalizeCategoryBody(body: CategoryRequest | null) {
   }
 }
 
+async function wouldCreateCycle(env: Env, id: string, parentId: string) {
+  if (!parentId || parentId === '0') return false
+
+  let currentParentId = parentId
+  const visited = new Set<string>()
+  for (let depth = 0; depth < 100; depth += 1) {
+    if (currentParentId === id) return true
+    if (visited.has(currentParentId)) return true
+    visited.add(currentParentId)
+
+    const row = await env.DB.prepare('SELECT parent_id FROM categories WHERE id = ? LIMIT 1')
+      .bind(currentParentId)
+      .first<{ parent_id: string }>()
+    if (!row || !row.parent_id || row.parent_id === '0') return false
+    currentParentId = row.parent_id
+  }
+
+  return true
+}
+
 export const categoryRoutes = new Hono<{ Bindings: Env; Variables: AuthVariables }>()
 
 categoryRoutes.get('/', async (c) => {
+  const pagination = parsePagination((name) => c.req.query(name))
+  const [rows, totalResult] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT id, parent_id, name, icon, sort, level, visible, created_by, created_at, updated_at
+       FROM categories
+       ORDER BY sort ASC, created_at DESC
+       LIMIT ? OFFSET ?`,
+    ).bind(pagination.pageSize, pagination.offset),
+    c.env.DB.prepare('SELECT COUNT(1) AS total FROM categories'),
+  ]) as [D1Result<CategoryRow>, D1Result<{ total: number }>]
+
+  return c.json(ok({
+    items: (rows.results || []).map(toCategory),
+    total: Number(totalResult.results?.[0]?.total || 0),
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+  }))
+})
+
+categoryRoutes.get('/options', async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT id, parent_id, name, icon, sort, level, visible, created_by, created_at, updated_at
      FROM categories
@@ -82,6 +123,15 @@ categoryRoutes.post('/', async (c) => {
   const id = createId()
   const time = nowIso()
   const value = normalized.value
+
+  if (value.parentId !== '0') {
+    const parent = await c.env.DB.prepare('SELECT id FROM categories WHERE id = ? LIMIT 1')
+      .bind(value.parentId)
+      .first<{ id: string }>()
+    if (!parent) {
+      return c.json(fail('Parent category not found', 400), 400)
+    }
+  }
 
   await c.env.DB.prepare(
     `INSERT INTO categories (
@@ -109,6 +159,21 @@ categoryRoutes.put('/:id', async (c) => {
 
   const time = nowIso()
   const value = normalized.value
+  if (value.parentId === id) {
+    return c.json(fail('分类不能将自身设为父级', 400), 400)
+  }
+  if (value.parentId !== '0') {
+    const parent = await c.env.DB.prepare('SELECT id FROM categories WHERE id = ? LIMIT 1')
+      .bind(value.parentId)
+      .first<{ id: string }>()
+    if (!parent) {
+      return c.json(fail('Parent category not found', 400), 400)
+    }
+    if (await wouldCreateCycle(c.env, id, value.parentId)) {
+      return c.json(fail('分类不能将子孙分类设为父级', 400), 400)
+    }
+  }
+
   await c.env.DB.prepare(
     `UPDATE categories
      SET parent_id = ?, name = ?, icon = ?, sort = ?, level = ?, visible = ?, updated_at = ?

@@ -1,4 +1,5 @@
-import { http } from './http'
+import { http, type ApiResponse } from './http'
+import { normalizePaginatedResult, type PaginatedResult } from './types'
 
 export interface OperationLog {
   id: string
@@ -13,15 +14,11 @@ export interface OperationLog {
   createdAt: string
 }
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
 
-export async function getOperationLogs() {
-  const response = await http.get<ApiResponse<OperationLog[]>>('/admin/operation-logs')
-  return response.data.data || []
+
+export async function getOperationLogs(params?: { page?: number; pageSize?: number }): Promise<PaginatedResult<OperationLog>> {
+  const response = await http.get<ApiResponse<OperationLog[] | PaginatedResult<OperationLog>>>('/admin/operation-logs', { params })
+  return normalizePaginatedResult(response.data.data, params?.page, params?.pageSize)
 }
 
 export async function cleanupOperationLogs(beforeDays = 90) {

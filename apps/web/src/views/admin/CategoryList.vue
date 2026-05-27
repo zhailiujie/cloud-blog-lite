@@ -4,7 +4,15 @@
   </PageHeader>
 
   <n-card>
-    <n-data-table class="desktop-table" :columns="columns" :data="categories" :loading="loading" :pagination="{ pageSize: 10 }" :scroll-x="760" />
+    <n-data-table
+      class="desktop-table"
+      :columns="columns"
+      :data="categories"
+      :loading="loading"
+      :pagination="pagination"
+      remote
+      :scroll-x="760"
+    />
     <div class="mobile-card-list">
       <div v-for="category in categories" :key="category.id" class="mobile-data-card">
         <div class="mobile-card-head">
@@ -14,7 +22,7 @@
           </div>
           <n-switch :value="category.visible === 1" disabled />
         </div>
-        <div class="mobile-card-row"><span>父级</span><b>{{ category.parentId }}</b></div>
+        <div class="mobile-card-row"><span>父级</span><b>{{ parentName(category.parentId) }}</b></div>
         <div class="mobile-card-row"><span>排序</span><b>{{ category.sort }}</b></div>
         <div class="mobile-card-row"><span>层级</span><b>{{ category.level }}</b></div>
         <n-space justify="end">
@@ -30,8 +38,8 @@
       <n-form-item label="分类名称" required>
         <n-input v-model:value="form.name" placeholder="请输入分类名称" />
       </n-form-item>
-      <n-form-item label="父级分类 ID">
-        <n-input v-model:value="form.parentId" placeholder="0 表示顶级分类" />
+      <n-form-item label="父级分类">
+        <n-select v-model:value="form.parentId" :options="parentOptions" placeholder="请选择父级分类" />
       </n-form-item>
       <n-form-item label="图标">
         <n-input v-model:value="form.icon" placeholder="例如 💻 或 fa fa-code" />
@@ -61,7 +69,7 @@
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import { NButton, NSpace, NSwitch, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
-import { createCategory, deleteCategory, getCategories, updateCategory, type Category, type CategoryPayload } from '@/api/categories'
+import { createCategory, deleteCategory, getCategories, getCategoryOptions, updateCategory, type Category, type CategoryPayload } from '@/api/categories'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -70,6 +78,23 @@ const saving = ref(false)
 const showModal = ref(false)
 const editingId = ref<string | null>(null)
 const categories = ref<Category[]>([])
+const categoryOptions = ref<Category[]>([])
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  itemCount: 0,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50],
+  onUpdatePage(page: number) {
+    pagination.page = page
+    void loadCategories()
+  },
+  onUpdatePageSize(pageSize: number) {
+    pagination.pageSize = pageSize
+    pagination.page = 1
+    void loadCategories()
+  },
+})
 const form = reactive<CategoryPayload>({
   parentId: '0',
   name: '',
@@ -79,6 +104,13 @@ const form = reactive<CategoryPayload>({
   visible: 1,
 })
 
+const parentOptions = computed(() => [
+  { label: '顶级分类', value: '0' },
+  ...categoryOptions.value
+    .filter((item) => item.id !== editingId.value)
+    .map((item) => ({ label: item.name, value: item.id })),
+])
+
 const visibleChecked = computed({
   get: () => form.visible !== 0,
   set: (value: boolean) => {
@@ -86,10 +118,15 @@ const visibleChecked = computed({
   },
 })
 
+function parentName(parentId: string) {
+  if (!parentId || parentId === '0') return '顶级分类'
+  return categoryOptions.value.find((item) => item.id === parentId)?.name || parentId
+}
+
 const columns: DataTableColumns<Category> = [
   { title: '名称', key: 'name' },
   { title: '图标', key: 'icon', width: 100 },
-  { title: '父级', key: 'parentId', width: 160 },
+  { title: '父级', key: 'parentId', width: 160, render(row) { return parentName(row.parentId) } },
   { title: '排序', key: 'sort', width: 90 },
   { title: '层级', key: 'level', width: 90 },
   {
@@ -141,10 +178,19 @@ function openEdit(row: Category) {
   showModal.value = true
 }
 
+async function loadCategoryOptions() {
+  categoryOptions.value = await getCategoryOptions()
+}
+
 async function loadCategories() {
   loading.value = true
   try {
-    categories.value = await getCategories()
+    const result = await getCategories({ page: pagination.page, pageSize: pagination.pageSize })
+    categories.value = result.items
+    pagination.itemCount = result.total
+    await loadCategoryOptions()
+  } catch {
+    message.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -175,15 +221,22 @@ async function handleSave() {
 }
 
 function confirmDelete(row: Category) {
-  dialog.warning({
+  const dialogInstance = dialog.warning({
     title: '确认删除',
     content: `确定删除分类「${row.name}」吗？`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      await deleteCategory(row.id)
-      message.success('分类已删除')
-      await loadCategories()
+      dialogInstance.loading = true
+      try {
+        await deleteCategory(row.id)
+        message.success('分类已删除')
+        await loadCategories()
+      } catch {
+        message.error('删除失败')
+      } finally {
+        dialogInstance.loading = false
+      }
     },
   })
 }

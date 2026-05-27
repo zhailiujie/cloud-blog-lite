@@ -4,7 +4,15 @@
   </PageHeader>
 
   <n-card>
-    <n-data-table class="desktop-table" :columns="columns" :data="users" :loading="loading" :pagination="{ pageSize: 10 }" :scroll-x="920" />
+    <n-data-table
+      class="desktop-table"
+      :columns="columns"
+      :data="users"
+      :loading="loading"
+      :pagination="pagination"
+      remote
+      :scroll-x="920"
+    />
     <div class="mobile-card-list">
       <div v-for="user in users" :key="user.id" class="mobile-data-card">
         <div class="mobile-card-head">
@@ -25,7 +33,7 @@
         <n-space justify="end" class="mobile-card-actions">
           <n-button size="small" @click="openEdit(user)">编辑</n-button>
           <n-button size="small" @click="openReset(user)">重置密码</n-button>
-          <n-button size="small" type="error" ghost @click="confirmDelete(user)">删除</n-button>
+          <n-button size="small" type="error" ghost :disabled="isDeleteDisabled(user)" @click="confirmDelete(user)">删除</n-button>
         </n-space>
       </div>
     </div>
@@ -89,11 +97,13 @@
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import { NButton, NSpace, NSwitch, NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
+import { useAuthStore } from '@/stores/auth'
 import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, type CreateUserPayload, type User, type UserRole } from '@/api/users'
 import { uploadFile } from '@/api/upload'
 
 const message = useMessage()
 const dialog = useDialog()
+const auth = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
 const showModal = ref(false)
@@ -102,6 +112,22 @@ const editingId = ref<string | null>(null)
 const passwordTargetId = ref<string | null>(null)
 const newPassword = ref('')
 const users = ref<User[]>([])
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  itemCount: 0,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50],
+  onUpdatePage(page: number) {
+    pagination.page = page
+    void loadUsers()
+  },
+  onUpdatePageSize(pageSize: number) {
+    pagination.pageSize = pageSize
+    pagination.page = 1
+    void loadUsers()
+  },
+})
 const form = reactive<CreateUserPayload>({ username: '', password: '', nickname: '', avatar: '', role: 'viewer', status: 1, remark: '' })
 const roleOptions = [
   { label: '管理员', value: 'admin' },
@@ -115,6 +141,19 @@ const statusChecked = computed({
     form.status = value ? 1 : 0
   },
 })
+
+const activeAdminCount = computed(() => users.value.filter((user) => user.role === 'admin' && user.status === 1).length)
+
+function isDeleteDisabled(user: User) {
+  if (user.id === auth.user?.id) return true
+  return user.role === 'admin' && user.status === 1 && activeAdminCount.value <= 1
+}
+
+function deleteDisabledReason(user: User) {
+  if (user.id === auth.user?.id) return '不能删除当前登录用户'
+  if (user.role === 'admin' && user.status === 1 && activeAdminCount.value <= 1) return '不能删除唯一活跃管理员'
+  return ''
+}
 
 const columns: DataTableColumns<User> = [
   { title: '用户名', key: 'username', width: 130 },
@@ -151,7 +190,7 @@ const columns: DataTableColumns<User> = [
         default: () => [
           h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
           h(NButton, { size: 'small', onClick: () => openReset(row) }, { default: () => '重置密码' }),
-          h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => confirmDelete(row) }, { default: () => '删除' }),
+          h(NButton, { size: 'small', type: 'error', ghost: true, disabled: isDeleteDisabled(row), onClick: () => confirmDelete(row) }, { default: () => '删除' }),
         ],
       })
     },
@@ -195,7 +234,11 @@ function openReset(row: User) {
 async function loadUsers() {
   loading.value = true
   try {
-    users.value = await getUsers()
+    const result = await getUsers({ page: pagination.page, pageSize: pagination.pageSize })
+    users.value = result.items
+    pagination.itemCount = result.total
+  } catch {
+    message.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -206,7 +249,10 @@ async function handleAvatarUpload(options: { file: { file?: File | null }; onFin
   if (!file) return
   try {
     const result = await uploadFile(file)
-    form.avatar = result?.url || ''
+    if (!result?.url) {
+      throw new Error('上传成功但未返回文件地址')
+    }
+    form.avatar = result.url
     message.success('头像上传成功')
     options.onFinish?.()
   } catch (error) {
@@ -249,19 +295,27 @@ async function handleStatusChange(row: User, enabled: boolean) {
     return
   }
 
-  try {
-    await updateUser(row.id, {
-      nickname: row.nickname || '',
-      avatar: row.avatar || '',
-      role: row.role,
-      status: enabled ? 1 : 0,
-      remark: row.remark || '',
-    })
-    message.success(enabled ? '用户已启用' : '用户已禁用')
-    await loadUsers()
-  } catch {
-    message.error('状态更新失败')
-  }
+  dialog.warning({
+    title: enabled ? '确认启用用户' : '确认禁用用户',
+    content: `确定${enabled ? '启用' : '禁用'}用户「${row.username}」吗？`,
+    positiveText: enabled ? '启用' : '禁用',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await updateUser(row.id, {
+          nickname: row.nickname || '',
+          avatar: row.avatar || '',
+          role: row.role,
+          status: enabled ? 1 : 0,
+          remark: row.remark || '',
+        })
+        message.success(enabled ? '用户已启用' : '用户已禁用')
+        await loadUsers()
+      } catch {
+        message.error('状态更新失败')
+      }
+    },
+  })
 }
 
 async function handleResetPassword() {
@@ -274,21 +328,36 @@ async function handleResetPassword() {
     await resetUserPassword(passwordTargetId.value, newPassword.value)
     message.success('密码已重置')
     showPasswordModal.value = false
+  } catch {
+    message.error('重置密码失败')
   } finally {
     saving.value = false
   }
 }
 
 function confirmDelete(row: User) {
-  dialog.warning({
+  const disabledReason = deleteDisabledReason(row)
+  if (disabledReason) {
+    message.warning(disabledReason)
+    return
+  }
+
+  const dialogInstance = dialog.warning({
     title: '确认删除',
     content: `确定删除用户「${row.username}」吗？`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      await deleteUser(row.id)
-      message.success('用户已删除')
-      await loadUsers()
+      dialogInstance.loading = true
+      try {
+        await deleteUser(row.id)
+        message.success('用户已删除')
+        await loadUsers()
+      } catch {
+        message.error('删除失败')
+      } finally {
+        dialogInstance.loading = false
+      }
     },
   })
 }

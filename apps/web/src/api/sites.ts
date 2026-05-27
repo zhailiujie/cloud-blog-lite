@@ -1,4 +1,4 @@
-import { http } from './http'
+import { http, type ApiResponse } from './http'
 
 export interface Site {
   id: string
@@ -28,11 +28,7 @@ export interface SitePayload {
   visible?: number
 }
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
+
 
 export async function getSites(params?: { categoryId?: string; keyword?: string; visible?: number }) {
   const response = await http.get<ApiResponse<Site[]>>('/admin/sites', { params })

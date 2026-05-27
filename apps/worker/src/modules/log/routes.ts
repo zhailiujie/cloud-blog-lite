@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { Env } from '../../env'
 import type { AuthVariables } from '../../middleware/auth'
 import { fail, ok } from '../../utils/response'
+import { parsePagination } from '../../utils/pagination'
 
 interface LogRow {
   id: string
@@ -34,19 +35,28 @@ function toLog(row: LogRow) {
 export const logRoutes = new Hono<{ Bindings: Env; Variables: AuthVariables }>()
 
 logRoutes.get('/', async (c) => {
-  const rows = await c.env.DB.prepare(
-    `SELECT id, user_id, username, action, module, description, detail, ip, user_agent, created_at
-     FROM operation_logs
-     ORDER BY created_at DESC
-     LIMIT 100`,
-  ).all<LogRow>()
+  const pagination = parsePagination((name) => c.req.query(name))
+  const [rows, totalResult] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT id, user_id, username, action, module, description, detail, ip, user_agent, created_at
+       FROM operation_logs
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+    ).bind(pagination.pageSize, pagination.offset),
+    c.env.DB.prepare('SELECT COUNT(1) AS total FROM operation_logs'),
+  ]) as [D1Result<LogRow>, D1Result<{ total: number }>]
 
-  return c.json(ok((rows.results || []).map(toLog)))
+  return c.json(ok({
+    items: (rows.results || []).map(toLog),
+    total: Number(totalResult.results?.[0]?.total || 0),
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+  }))
 })
 
 logRoutes.delete('/cleanup', async (c) => {
   const beforeDays = Number(c.req.query('beforeDays') || 90)
-  if (!Number.isFinite(beforeDays) || beforeDays < 1) {
+  if (!Number.isFinite(beforeDays) || beforeDays < 1 || beforeDays > 3650) {
     return c.json(fail('Invalid beforeDays', 400), 400)
   }
 

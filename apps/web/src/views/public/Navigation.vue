@@ -44,7 +44,7 @@
             @click="selectCategory(category.id)"
           >
             <span class="cat-icon">
-              {{ isEmoji(category.icon) ? category.icon : category.name.slice(0, 1) }}
+              {{ isEmoji(category.icon) ? category.icon : firstChar(category.name) }}
             </span>
             <span class="cat-name">{{ category.name }}</span>
           </button>
@@ -155,6 +155,10 @@ function setupScrollSpy() {
     { rootMargin: '-80px 0px -55% 0px', threshold: 0 },
   )
   Object.values(sectionRefs).forEach((el) => scrollObserver?.observe(el))
+}
+
+function firstChar(value: string): string {
+  return [...value][0] || ''
 }
 
 /** 判断 icon 字段是否为 emoji（排除 FA class 名） */

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { http } from "@/api/http";
+import { http, type ApiResponse } from "@/api/http";
 
 export interface CurrentUser {
   id: string;
@@ -10,11 +10,7 @@ export interface CurrentUser {
   status: number;
 }
 
-interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T | null;
-}
+
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({

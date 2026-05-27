@@ -1,12 +1,15 @@
 import { Hono } from "hono";
 import type { Env } from "../../env";
-import { clearCookie, createCookie, getCookie } from "../../utils/cookie";
+import { clearCookie, createCookie, getCookie, getCookieName } from "../../utils/cookie";
 import { fail, ok } from "../../utils/response";
 import { signJwt, verifyJwt } from "../../utils/jwt";
 import { verifyPassword } from "../../utils/crypto";
 import { nowIso } from "../../utils/id";
 
 const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+const MAX_LOGIN_ERRORS = 10;
+const DUMMY_PASSWORD_HASH =
+  "pbkdf2$100000$AQEBAQEBAQEBAQEBAQEBAQ==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 interface LoginRequest {
   username?: string;
@@ -22,6 +25,7 @@ interface UserRow {
   avatar: string | null;
   role: "admin" | "editor" | "viewer";
   status: number;
+  login_error_count: number;
 }
 
 interface TurnstileVerifyResponse {
@@ -29,9 +33,7 @@ interface TurnstileVerifyResponse {
   "error-codes"?: string[];
 }
 
-function getCookieName(env: Env): string {
-  return env.COOKIE_NAME || "cloud_blog_token";
-}
+
 
 function toCurrentUser(user: Omit<UserRow, "password_hash">) {
   return {
@@ -99,7 +101,7 @@ authRoutes.post("/login", async (c) => {
   }
 
   const user = await c.env.DB.prepare(
-    `SELECT id, username, password_hash, nickname, avatar, role, status
+    `SELECT id, username, password_hash, nickname, avatar, role, status, login_error_count
      FROM users
      WHERE username = ?
      LIMIT 1`,
@@ -108,11 +110,20 @@ authRoutes.post("/login", async (c) => {
     .first<UserRow>();
 
   if (!user) {
+    await verifyPassword(password, DUMMY_PASSWORD_HASH);
     return c.json(fail("Invalid username or password", 401), 401);
   }
 
   if (user.status !== 1) {
     return c.json(fail("User is disabled", 403), 403);
+  }
+
+  // 连续错误次数过多则锁定账号
+  if (user.login_error_count >= MAX_LOGIN_ERRORS) {
+    return c.json(
+      fail("登录失败次数过多，账号已锁定，请联系管理员重置", 429),
+      429,
+    );
   }
 
   const passwordValid = await verifyPassword(password, user.password_hash);

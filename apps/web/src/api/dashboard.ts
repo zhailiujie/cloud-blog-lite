@@ -1,4 +1,4 @@
-import { http } from './http'
+import { http, type ApiResponse } from './http'
 
 export interface DashboardStats {
   counts: {
@@ -13,6 +13,7 @@ export interface DashboardStats {
     name: string
     url: string
     created_at: string
+    categoryName?: string | null
     category_name?: string | null
   }>
   recentLogs: Array<{
@@ -21,15 +22,12 @@ export interface DashboardStats {
     action: string
     module?: string | null
     description?: string | null
+    createdAt?: string
     created_at: string
   }>
 }
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
+
 
 export async function getDashboardStats() {
   const response = await http.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats')

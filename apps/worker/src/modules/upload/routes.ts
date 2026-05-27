@@ -72,10 +72,23 @@ uploadRoutes.post("/", async (c) => {
   return c.json(ok({ key, url: `/api/files/${key}` }));
 });
 
+function getFileKeyFromPath(pathname: string): string {
+  const marker = "/files/";
+  const markerIndex = pathname.indexOf(marker);
+  if (markerIndex === -1) return "";
+
+  const key = pathname.slice(markerIndex + marker.length);
+  try {
+    return decodeURIComponent(key);
+  } catch {
+    return "";
+  }
+}
+
 export const fileRoutes = new Hono<{ Bindings: Env }>();
 
 fileRoutes.get("/*", async (c) => {
-  const key = c.req.param("*");
+  const key = getFileKeyFromPath(new URL(c.req.url).pathname);
   if (!key) {
     return c.json(fail("File key is required", 400), 400);
   }

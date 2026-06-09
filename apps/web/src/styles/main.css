@@ -8,6 +8,9 @@
   --border: rgba(23, 32, 51, 0.1);
   --primary: #4f46e5;
   --primary-soft: rgba(79, 70, 229, 0.12);
+  --link: #4f46e5;
+  --link-visited: #6d5bd0;
+  --link-hover: #4338ca;
   --shadow: 0 20px 60px rgba(31, 41, 55, 0.12);
   color: var(--text);
   background: var(--bg);
@@ -24,6 +27,9 @@
   --border: rgba(255, 255, 255, 0.1);
   --primary: #8b5cf6;
   --primary-soft: rgba(139, 92, 246, 0.16);
+  --link: #93c5fd;
+  --link-visited: #a5b4fc;
+  --link-hover: #bfdbfe;
   --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
 }
 

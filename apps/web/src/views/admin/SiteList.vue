@@ -1,7 +1,6 @@
 <template>
   <PageHeader title="站点管理" subtitle="Sites">
     <n-space>
-      <n-button :loading="checkingAll" @click="handleCheckAllSites">检测全部</n-button>
       <n-button @click="handleExportSites">导出</n-button>
       <n-button @click="triggerImport">导入</n-button>
       <n-button type="primary" @click="openCreate">新增站点</n-button>
@@ -14,7 +13,7 @@
       <n-input v-model:value="query.keyword" clearable placeholder="搜索站点名称、描述或 URL" class="filter-input" />
       <n-select filterable v-model:value="query.categoryId" clearable placeholder="选择分类" :options="categoryOptions" class="filter-select" />
       <n-select filterable v-model:value="query.tagId" clearable placeholder="选择标签" :options="tagOptions" class="filter-select" />
-      <n-select filterable v-model:value="query.healthStatus" clearable placeholder="健康状态" :options="healthOptions" class="filter-select" />
+
       <n-select filterable v-model:value="query.visible" clearable placeholder="显示状态" :options="visibleOptions" class="filter-select" />
       <n-select filterable v-model:value="query.isPinned" clearable placeholder="置顶状态" :options="pinnedOptions" class="filter-select" />
       <n-button @click="loadSites">查询</n-button>
@@ -28,7 +27,7 @@
       :data="sites"
       :loading="loading"
       :pagination="{ pageSize: 10 }"
-      :scroll-x="1280"
+      :scroll-x="1040"
     />
     <div class="mobile-card-list">
       <div v-for="site in sites" :key="site.id" class="mobile-data-card">
@@ -43,14 +42,7 @@
           <span>URL</span>
           <a :href="safeUrl(site.url)" target="_blank" rel="noopener noreferrer">{{ formatDisplayUrl(site.url) }}</a>
         </div>
-        <div v-if="site.account" class="mobile-card-row">
-          <span>账号</span>
-          <b>{{ site.account }}</b>
-        </div>
-        <div v-if="site.password" class="mobile-card-row">
-          <span>密码</span>
-          <b>{{ visiblePasswords[site.id] ? site.password : '••••••••' }}</b>
-        </div>
+
         <div class="mobile-card-row">
           <span>置顶</span>
           <b>{{ site.isPinned === 1 ? '是' : '否' }}</b>
@@ -59,18 +51,13 @@
           <span>点击</span>
           <b>{{ site.clickCount }}</b>
         </div>
-        <div class="mobile-card-row">
-          <span>健康</span>
-          <b>{{ healthLabel(site) }}</b>
-        </div>
+
         <div class="mobile-card-row">
           <span>排序</span>
           <b>{{ site.sort }}</b>
         </div>
         <n-space justify="end">
-          <n-button v-if="site.password" size="small" @click="visiblePasswords[site.id] = !visiblePasswords[site.id]">
-            {{ visiblePasswords[site.id] ? '隐藏密码' : '显示密码' }}
-          </n-button>
+          <n-button size="small" @click="openDetail(site)">查看</n-button>
           <n-button size="small" @click="openEdit(site)">编辑</n-button>
           <n-button size="small" type="error" ghost @click="confirmDelete(site)">删除</n-button>
         </n-space>
@@ -132,41 +119,74 @@
       </n-space>
     </template>
   </n-modal>
+
+  <n-modal v-model:show="showDetailModal" preset="card" title="站点详情" class="form-modal large">
+    <n-descriptions v-if="selectedSite" label-placement="left" bordered :column="1">
+      <n-descriptions-item label="名称">{{ selectedSite.name }}</n-descriptions-item>
+      <n-descriptions-item label="分类">{{ selectedSite.categoryName || '未分类' }}</n-descriptions-item>
+      <n-descriptions-item label="URL">
+        <a :href="safeUrl(selectedSite.url)" target="_blank" rel="noopener noreferrer">{{ selectedSite.url }}</a>
+      </n-descriptions-item>
+      <n-descriptions-item label="账号">
+        <div class="detail-secret-line">
+          <span>{{ selectedSite.account || '-' }}</span>
+          <n-button v-if="selectedSite.account" size="tiny" quaternary circle title="复制" @click="copyText(selectedSite.account)">
+            <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="9" width="11" height="11" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </n-button>
+        </div>
+      </n-descriptions-item>
+      <n-descriptions-item label="密码">
+        <div class="detail-secret-line">
+          <span>{{ selectedSite.password || '-' }}</span>
+          <n-button v-if="selectedSite.password" size="tiny" quaternary circle title="复制" @click="copyText(selectedSite.password)">
+            <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="9" width="11" height="11" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </n-button>
+        </div>
+      </n-descriptions-item>
+      <n-descriptions-item label="描述">{{ selectedSite.description || '-' }}</n-descriptions-item>
+    </n-descriptions>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NSwitch, NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NCard, NDataTable, NDescriptions, NDescriptionsItem, NForm, NFormItem, NFormItemGi, NGrid, NInput, NInputGroup, NInputNumber, NModal, NSelect, NSpace, NSwitch, NUpload, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { getCategoryOptions, type Category } from '@/api/categories'
-import { checkAllSites, checkSite, createSite, deleteSite, exportSiteData, getSites, importSiteData, updateSite, type Site, type SitePayload } from '@/api/sites'
-import { uploadFile } from '@/api/upload'
+import { createSite, deleteSite, exportSiteData, getSites, importSiteData, updateSite, type Site, type SitePayload } from '@/api/sites'
+import { fetchFaviconToR2, uploadFile } from '@/api/upload'
+import { getSettings } from '@/api/settings'
 import { getTagOptions, type Tag } from '@/api/tags'
 
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
 const saving = ref(false)
-const checkingAll = ref(false)
+
 const fetchingFavicon = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
 const showModal = ref(false)
+const showDetailModal = ref(false)
+const selectedSite = ref<Site | null>(null)
+const logoLocalEnabled = ref(false)
 const editingId = ref<string | null>(null)
 const categories = ref<Category[]>([])
 const tags = ref<Tag[]>([])
 const sites = ref<Site[]>([])
-const visiblePasswords = ref<Record<string, boolean>>({})
-const checkingSiteId = ref<string | null>(null)
-const query = reactive({ keyword: '', categoryId: null as string | null, tagId: null as string | null, healthStatus: null as string | null, visible: null as number | null, isPinned: null as number | null })
+
+
+const query = reactive({ keyword: '', categoryId: null as string | null, tagId: null as string | null, visible: null as number | null, isPinned: null as number | null })
 const form = reactive<SitePayload>({ categoryId: '', name: '', url: '', description: '', logo: '', account: '', password: '', sort: 0, isPinned: 0, visible: 1, tagIds: [] })
 
 const categoryOptions = computed(() => categories.value.map((item) => ({ label: item.name, value: item.id })))
 const tagOptions = computed(() => tags.value.map((item) => ({ label: item.name, value: item.id })))
-const healthOptions = [
-  { label: '未检测', value: 'unknown' },
-  { label: '正常', value: 'ok' },
-  { label: '异常', value: 'error' },
-]
+
 const visibleOptions = [
   { label: '显示', value: 1 },
   { label: '隐藏', value: 0 },
@@ -192,11 +212,9 @@ const columns: DataTableColumns<Site> = [
   { title: '名称', key: 'name', minWidth: 140 },
   { title: '分类', key: 'categoryName', width: 120 },
   { title: 'URL', key: 'url', width: 280, render(row) { return renderUrl(row.url) } },
-  { title: '账号', key: 'account', width: 180, render(row) { return row.account ? renderCopyText(row.account, maskText(row.account, 18)) : '-' } },
-  { title: '密码', key: 'password', minWidth: 170, render(row) { return row.password ? renderPassword(row) : '-' } },
   { title: '置顶', key: 'isPinned', width: 80, render(row) { return row.isPinned === 1 ? '是' : '-' } },
   { title: '点击', key: 'clickCount', width: 90 },
-  { title: '健康', key: 'healthStatus', width: 120, render(row) { return renderHealth(row) } },
+
   { title: '排序', key: 'sort', width: 80 },
   {
     title: '显示',
@@ -209,12 +227,12 @@ const columns: DataTableColumns<Site> = [
   {
     title: '操作',
     key: 'actions',
-    width: 170,
+    width: 190,
     fixed: 'right',
     render(row) {
       return h(NSpace, null, {
         default: () => [
-          h(NButton, { size: 'small', loading: checkingSiteId.value === row.id, onClick: () => handleCheckSite(row) }, { default: () => '检测' }),
+          h(NButton, { size: 'small', onClick: () => openDetail(row) }, { default: () => '查看' }),
           h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
           h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => confirmDelete(row) }, { default: () => '删除' }),
         ],
@@ -224,16 +242,7 @@ const columns: DataTableColumns<Site> = [
 ]
 
 
-function healthLabel(row: Site) {
-  if (row.healthStatus === 'ok') return row.httpStatus ? `正常 ${row.httpStatus}` : '正常'
-  if (row.healthStatus === 'error') return row.httpStatus ? `异常 ${row.httpStatus}` : '异常'
-  return '未检测'
-}
 
-function renderHealth(row: Site) {
-  const type = row.healthStatus === 'ok' ? 'success' : row.healthStatus === 'error' ? 'error' : 'default'
-  return h(NTag, { size: 'small', type, bordered: false, title: row.healthError || row.lastCheckedAt || '' }, { default: () => healthLabel(row) })
-}
 
 function copyText(value: string) {
   navigator.clipboard?.writeText(value)
@@ -278,33 +287,7 @@ function renderCopyButton(value: string) {
   })
 }
 
-function renderPasswordToggleButton(visible: boolean, onClick: () => void) {
-  const title = visible ? '隐藏密码' : '显示密码'
-  return h(NButton, { size: 'tiny', quaternary: true, circle: true, title, onClick }, {
-    default: () => h('svg', {
-      viewBox: '0 0 24 24',
-      width: 16,
-      height: 16,
-      fill: 'none',
-      stroke: 'currentColor',
-      'stroke-width': 2,
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-      'aria-hidden': 'true',
-      style: 'display:block;color:var(--text-color-2);',
-    }, visible
-      ? [
-          h('path', { d: 'M3 3l18 18' }),
-          h('path', { d: 'M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58' }),
-          h('path', { d: 'M9.88 4.24A10.8 10.8 0 0 1 12 4c5 0 9 4.5 10 8a12.6 12.6 0 0 1-2.12 3.48' }),
-          h('path', { d: 'M6.1 6.1C4.08 7.42 2.7 9.55 2 12c1 3.5 5 8 10 8 1.38 0 2.68-.34 3.86-.95' }),
-        ]
-      : [
-          h('path', { d: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z' }),
-          h('circle', { cx: 12, cy: 12, r: 3 }),
-        ]),
-  })
-}
+
 
 function safeUrl(value: string) {
   const url = value.trim()
@@ -320,26 +303,7 @@ function renderUrl(value: string) {
   })
 }
 
-function renderCopyText(value: string, displayValue = value) {
-  return h(NSpace, { align: 'center', size: 4, wrap: false }, {
-    default: () => [
-      h('span', { class: 'copy-text', title: value }, displayValue),
-      renderCopyButton(value),
-    ],
-  })
-}
 
-function renderPassword(row: Site) {
-  const visible = Boolean(visiblePasswords.value[row.id])
-  const value = row.password || ''
-  return h(NSpace, { align: 'center', size: 4 }, {
-    default: () => [
-      h('span', { class: 'copy-text' }, visible ? value : '••••••••'),
-      renderPasswordToggleButton(visible, () => { visiblePasswords.value[row.id] = !visible }),
-      renderCopyButton(value),
-    ],
-  })
-}
 
 function resetForm() {
   editingId.value = null
@@ -405,11 +369,27 @@ async function loadTags() {
 async function loadSites() {
   loading.value = true
   try {
-    sites.value = await getSites({ keyword: query.keyword, categoryId: query.categoryId || undefined, tagId: query.tagId || undefined, healthStatus: query.healthStatus || undefined, visible: query.visible ?? undefined, isPinned: query.isPinned ?? undefined })
+    sites.value = await getSites({ keyword: query.keyword, categoryId: query.categoryId || undefined, tagId: query.tagId || undefined, visible: query.visible ?? undefined, isPinned: query.isPinned ?? undefined })
   } catch {
     message.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
+  }
+}
+
+
+
+function openDetail(row: Site) {
+  selectedSite.value = row
+  showDetailModal.value = true
+}
+
+async function loadLogoSettings() {
+  try {
+    const settings = await getSettings()
+    logoLocalEnabled.value = settings['site.logo_local_enabled'] === '1'
+  } catch {
+    logoLocalEnabled.value = false
   }
 }
 
@@ -438,32 +418,41 @@ async function loadImageWithTimeout(src: string) {
   })
 }
 
+async function fetchRemoteFavicon(url: string) {
+  const faviconUrls = buildFaviconUrls(url)
+  for (const faviconUrl of faviconUrls) {
+    try {
+      await loadImageWithTimeout(faviconUrl)
+      return faviconUrl
+    } catch {
+      // 尝试下一个 favicon 来源
+    }
+  }
+  throw new Error('未获取到可用 favicon')
+}
+
 async function handleFetchFavicon() {
-  const faviconUrls = buildFaviconUrls(form.url || '')
-  if (!faviconUrls.length) {
+  const url = form.url?.trim()
+  if (!url || !/^https?:\/\//i.test(url)) {
     message.warning('请先填写有效的站点 URL')
     return
   }
 
   fetchingFavicon.value = true
   try {
-    let resolvedUrl = ''
-    for (const faviconUrl of faviconUrls) {
-      try {
-        await loadImageWithTimeout(faviconUrl)
-        resolvedUrl = faviconUrl
-        break
-      } catch {
-        // 尝试下一个 favicon 来源
+    if (logoLocalEnabled.value) {
+      const result = await fetchFaviconToR2(url)
+      if (!result?.url) {
+        throw new Error('未返回 favicon 地址')
       }
+      form.logo = result.url
+      message.success('已获取 favicon 并保存到 R2')
+    } else {
+      form.logo = await fetchRemoteFavicon(url)
+      message.success('已获取 favicon URL')
     }
-    if (!resolvedUrl) {
-      throw new Error('favicon not found')
-    }
-    form.logo = resolvedUrl
-    message.success('已获取 favicon')
-  } catch {
-    message.warning('未获取到可用 favicon，可手动上传图标')
+  } catch (error) {
+    message.warning(error instanceof Error ? error.message : '未获取到可用 favicon，可手动上传图标')
   } finally {
     fetchingFavicon.value = false
   }
@@ -528,36 +517,7 @@ async function handleImportFile(event: Event) {
   }
 }
 
-async function handleCheckSite(row: Site) {
-  checkingSiteId.value = row.id
-  try {
-    const result = await checkSite(row.id)
-    if (result) {
-      row.healthStatus = result.healthStatus
-      row.httpStatus = result.httpStatus
-      row.lastCheckedAt = result.lastCheckedAt
-      row.healthError = result.healthError
-    }
-    message.success('检测完成')
-  } catch {
-    message.error('检测失败')
-  } finally {
-    checkingSiteId.value = null
-  }
-}
 
-async function handleCheckAllSites() {
-  checkingAll.value = true
-  try {
-    const result = await checkAllSites()
-    message.success(`已检测 ${result?.checked || 0} 个站点`)
-    await loadSites()
-  } catch {
-    message.error('批量检测失败')
-  } finally {
-    checkingAll.value = false
-  }
-}
 
 async function handleSave() {
   if (!form.categoryId || !form.name?.trim() || !form.url?.trim()) {
@@ -605,6 +565,7 @@ function confirmDelete(row: Site) {
 }
 
 onMounted(async () => {
+  await loadLogoSettings()
   await loadCategories()
   await loadTags()
   await loadSites()
@@ -621,21 +582,39 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.url-link,
+:deep(.url-link),
 .mobile-card-row a {
-  color: color-mix(in srgb, var(--primary), var(--muted) 42%);
+  color: var(--link);
   text-decoration: none;
 }
 
-.url-link:visited,
+:deep(.url-link:visited),
 .mobile-card-row a:visited {
-  color: color-mix(in srgb, var(--primary), var(--muted) 52%);
+  color: var(--link-visited);
 }
 
-.url-link:hover,
+:deep(.url-link:hover),
 .mobile-card-row a:hover {
-  color: var(--primary);
+  color: var(--link-hover);
   text-decoration: underline;
+}
+
+.detail-secret-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-secret-line span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.copy-icon {
+  width: 15px;
+  height: 15px;
+  display: block;
 }
 
 .hidden-file-input {

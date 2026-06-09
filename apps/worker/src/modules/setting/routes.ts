@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   'site.title': 'cloud-blog-lite',
   'site.description': '轻量导航站',
   'site.footer_text': 'Powered by Cloudflare Pages + Workers',
+  'site.logo_local_enabled': '0',
 }
 
 async function getSettingsMap(env: Env) {
@@ -28,7 +29,7 @@ settingRoutes.get('/', async (c) => {
 
 settingRoutes.put('/', async (c) => {
   const body = await c.req.json<Record<string, string>>().catch(() => ({}))
-  const allowedKeys = new Set(['site.title', 'site.description', 'site.logo', 'site.footer_text'])
+  const allowedKeys = new Set(['site.title', 'site.description', 'site.logo', 'site.footer_text', 'site.logo_local_enabled'])
   const time = nowIso()
 
   for (const [key, value] of Object.entries(body)) {

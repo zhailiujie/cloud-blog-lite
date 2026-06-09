@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { NButton, NCard, NForm, NFormItem, NInput, useMessage } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADVriFpke3k5uAbM'

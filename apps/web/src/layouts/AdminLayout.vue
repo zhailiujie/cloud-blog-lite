@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { NButton, NDrawer, NDrawerContent, NLayout, NLayoutContent, NLayoutHeader, NLayoutSider, NMenu, NSpace, useMessage } from 'naive-ui'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
 import { useAuthStore } from '@/stores/auth'
 import { getSettings } from '@/api/settings'

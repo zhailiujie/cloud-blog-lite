@@ -1,7 +1,7 @@
 <template>
   <a class="site-card" :href="safeUrl" target="_blank" rel="noopener noreferrer" @click="handleClick">
     <div class="site-logo" :class="{ 'has-logo': Boolean(logo) && !logoLoadFailed }">
-      <img v-if="logo && !logoLoadFailed" :src="logo" :alt="name" @error="logoLoadFailed = true" />
+      <img v-if="logo && !logoLoadFailed" :src="logo" :alt="name" loading="lazy" decoding="async" @error="logoLoadFailed = true" />
       <span v-else>{{ firstChar }}</span>
     </div>
     <div class="site-main">

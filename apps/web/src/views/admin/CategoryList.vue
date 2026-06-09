@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NSwitch, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NCard, NDataTable, NForm, NFormItem, NFormItemGi, NGrid, NInput, NInputNumber, NModal, NSelect, NSpace, NSwitch, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { createCategory, deleteCategory, getCategories, getCategoryOptions, updateCategory, type Category, type CategoryPayload } from '@/api/categories'
 

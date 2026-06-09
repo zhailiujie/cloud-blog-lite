@@ -19,6 +19,9 @@
       <n-form-item label="页脚文案">
         <n-input v-model:value="form['site.footer_text']" />
       </n-form-item>
+      <n-form-item label="网站 Logo 保存到本地 R2">
+        <n-switch v-model:value="logoLocalEnabled" />
+      </n-form-item>
       <n-button type="primary" :loading="saving" :disabled="!isDirty" @click="handleSave">保存设置</n-button>
     </n-form>
   </n-card>
@@ -26,7 +29,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useMessage } from 'naive-ui'
+import { NButton, NCard, NForm, NFormItem, NInput, NInputGroup, NSwitch, NUpload, useMessage } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { getSettings, updateSettings } from '@/api/settings'
 import { uploadFile } from '@/api/upload'
@@ -38,9 +41,16 @@ const form = reactive<Record<string, string>>({
   'site.description': '',
   'site.logo': '',
   'site.footer_text': '',
+  'site.logo_local_enabled': '0',
 })
 
 const originalForm = ref<Record<string, string>>({})
+const logoLocalEnabled = computed({
+  get: () => form['site.logo_local_enabled'] === '1',
+  set: (value: boolean) => {
+    form['site.logo_local_enabled'] = value ? '1' : '0'
+  },
+})
 const isDirty = computed(() => JSON.stringify(form) !== JSON.stringify(originalForm.value))
 
 async function loadSettings() {

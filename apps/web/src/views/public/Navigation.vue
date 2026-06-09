@@ -38,29 +38,7 @@
       </div>
     </section>
 
-    <section v-if="popularSites.length" class="popular-section glass-panel">
-      <div class="section-title compact-title">
-        <div>
-          <p>热门访问</p>
-          <h2>热门站点</h2>
-        </div>
-      </div>
-      <div class="site-grid">
-        <SiteCard
-          v-for="site in popularSites"
-          :key="`popular-${site.id}`"
-          :site-id="site.id"
-          :name="site.name"
-          :url="site.url"
-          :description="site.description || ''"
-          :logo="site.logo || ''"
-          :is-pinned="site.isPinned === 1"
-          :tags="site.tags || []"
-          :click-count="site.clickCount || 0"
-          @tag-click="selectedTagId = $event"
-        />
-      </div>
-    </section>
+
 
     <section ref="contentShellRef" class="content-shell">
       <!-- 左侧分类导航 -->
@@ -162,11 +140,7 @@ const allTags = computed(() => {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
 })
-const allSites = computed(() => categories.value.flatMap((category) => category.sites))
-const popularSites = computed(() => allSites.value
-  .filter((site) => Number(site.clickCount || 0) > 0)
-  .sort((a, b) => Number(b.clickCount || 0) - Number(a.clickCount || 0))
-  .slice(0, 10))
+
 
 /** 按关键词过滤：仅保留有匹配站点的分类 */
 const filteredCategories = computed((): PublicCategory[] => {

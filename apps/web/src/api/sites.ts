@@ -16,10 +16,6 @@ export interface Site {
   visible: number
   clickCount: number
   lastClickedAt?: string | null
-  healthStatus?: 'unknown' | 'ok' | 'error'
-  httpStatus?: number | null
-  lastCheckedAt?: string | null
-  healthError?: string | null
   tags?: Tag[]
   tagIds?: string[]
   createdAt: string
@@ -42,7 +38,7 @@ export interface SitePayload {
 
 
 
-export async function getSites(params?: { categoryId?: string; keyword?: string; visible?: number; isPinned?: number; healthStatus?: string; tagId?: string }) {
+export async function getSites(params?: { categoryId?: string; keyword?: string; visible?: number; isPinned?: number; tagId?: string }) {
   const response = await http.get<ApiResponse<Site[]>>('/admin/sites', { params })
   return response.data.data || []
 }
@@ -53,22 +49,12 @@ export async function createSite(payload: SitePayload) {
 }
 
 export async function updateSite(id: string, payload: SitePayload) {
-  const response = await http.put<ApiResponse<Site>>(`/admin/sites/${id}`, payload)
+  const response = await http.put<ApiResponse<Site>>('/admin/sites/' + id, payload)
   return response.data.data
 }
 
 export async function deleteSite(id: string) {
-  const response = await http.delete<ApiResponse<boolean>>(`/admin/sites/${id}`)
-  return response.data.data
-}
-
-export async function checkSite(id: string) {
-  const response = await http.post<ApiResponse<{ healthStatus: 'unknown' | 'ok' | 'error'; httpStatus: number | null; lastCheckedAt: string; healthError: string }>>(`/admin/sites/${id}/check`)
-  return response.data.data
-}
-
-export async function checkAllSites() {
-  const response = await http.post<ApiResponse<{ checked: number }>>('/admin/sites/check-all')
+  const response = await http.delete<ApiResponse<boolean>>('/admin/sites/' + id)
   return response.data.data
 }
 

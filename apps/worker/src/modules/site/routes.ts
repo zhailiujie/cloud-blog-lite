@@ -21,10 +21,6 @@ interface SiteRow {
   visible: number
   click_count: number
   last_clicked_at: string | null
-  health_status: string
-  http_status: number | null
-  last_checked_at: string | null
-  health_error: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -66,10 +62,6 @@ async function toSite(row: SiteRow, env: Env, tags: SiteTagSummary[] = []) {
     visible: row.visible,
     clickCount: row.click_count,
     lastClickedAt: row.last_clicked_at,
-    healthStatus: row.health_status,
-    httpStatus: row.http_status,
-    lastCheckedAt: row.last_checked_at,
-    healthError: row.health_error,
     tags,
     tagIds: tags.map((tag) => tag.id),
     createdBy: row.created_by,
@@ -155,49 +147,6 @@ async function syncSiteTags(env: Env, siteId: string, tagIds: string[]) {
 }
 
 
-async function fetchSiteHealth(url: string) {
-  const checkedAt = nowIso()
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 8000)
-
-  try {
-    let response: Response
-    try {
-      response = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: controller.signal })
-    } catch {
-      response = await fetch(url, { method: 'GET', redirect: 'follow', signal: controller.signal })
-    }
-
-    return {
-      healthStatus: response.status >= 200 && response.status < 400 ? 'ok' : 'error',
-      httpStatus: response.status,
-      lastCheckedAt: checkedAt,
-      healthError: response.status >= 200 && response.status < 400 ? '' : `HTTP ${response.status}`,
-    }
-  } catch (error) {
-    return {
-      healthStatus: 'error',
-      httpStatus: null,
-      lastCheckedAt: checkedAt,
-      healthError: error instanceof Error ? error.message.slice(0, 200) : 'Health check failed',
-    }
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-async function updateSiteHealth(env: Env, id: string, url: string) {
-  const result = await fetchSiteHealth(url)
-  await env.DB.prepare(
-    `UPDATE sites
-     SET health_status = ?, http_status = ?, last_checked_at = ?, health_error = ?, updated_at = ?
-     WHERE id = ?`,
-  )
-    .bind(result.healthStatus, result.httpStatus, result.lastCheckedAt, result.healthError, result.lastCheckedAt, id)
-    .run()
-  return result
-}
-
 export const siteRoutes = new Hono<{ Bindings: Env; Variables: AuthVariables }>()
 
 siteRoutes.get('/', async (c) => {
@@ -205,7 +154,6 @@ siteRoutes.get('/', async (c) => {
   const keyword = c.req.query('keyword')?.trim()
   const visible = c.req.query('visible')
   const isPinned = c.req.query('isPinned')
-  const healthStatus = c.req.query('healthStatus')
   const tagId = c.req.query('tagId')
 
   const conditions: string[] = []
@@ -227,10 +175,6 @@ siteRoutes.get('/', async (c) => {
     conditions.push('s.is_pinned = ?')
     params.push(Number(isPinned))
   }
-  if (healthStatus === 'unknown' || healthStatus === 'ok' || healthStatus === 'error') {
-    conditions.push('s.health_status = ?')
-    params.push(healthStatus)
-  }
   if (tagId) {
     conditions.push('EXISTS (SELECT 1 FROM site_tags st WHERE st.site_id = s.id AND st.tag_id = ?)')
     params.push(tagId)
@@ -239,7 +183,7 @@ siteRoutes.get('/', async (c) => {
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
   const rows = await c.env.DB.prepare(
     `SELECT s.id, s.category_id, c.name AS category_name, s.name, s.url, s.description, s.logo, s.account, s.password_cipher,
-            s.sort, s.is_pinned, s.visible, s.click_count, s.last_clicked_at, s.health_status, s.http_status, s.last_checked_at, s.health_error, s.created_by, s.created_at, s.updated_at
+            s.sort, s.is_pinned, s.visible, s.click_count, s.last_clicked_at, s.created_by, s.created_at, s.updated_at
      FROM sites s
      LEFT JOIN categories c ON c.id = s.category_id
      ${where}
@@ -450,7 +394,7 @@ siteRoutes.post('/', async (c) => {
     detail: { id, url: value.url, categoryId: value.categoryId, tagIds: value.tagIds },
   })
 
-  return c.json(ok({ id, ...value, password: value.password ? '******' : '', clickCount: 0, lastClickedAt: null, healthStatus: 'unknown', httpStatus: null, lastCheckedAt: null, healthError: null, tags: [], createdBy: currentUser.sub, createdAt: time, updatedAt: time }))
+  return c.json(ok({ id, ...value, password: value.password ? '******' : '', clickCount: 0, lastClickedAt: null, tags: [], createdBy: currentUser.sub, createdAt: time, updatedAt: time }))
 })
 
 siteRoutes.put('/:id', async (c) => {
@@ -497,47 +441,6 @@ siteRoutes.put('/:id', async (c) => {
   return c.json(ok({ id, ...value, password: value.password ? '******' : '', updatedAt: time }))
 })
 
-
-siteRoutes.post('/:id/check', async (c) => {
-  const id = c.req.param('id')
-  const site = await c.env.DB.prepare('SELECT id, url FROM sites WHERE id = ? LIMIT 1').bind(id).first<{ id: string; url: string }>()
-  if (!site) {
-    return c.json(fail('Site not found', 404), 404)
-  }
-
-  const result = await updateSiteHealth(c.env, id, site.url)
-  const currentUser = c.get('user')
-  await writeOperationLog(c.env, {
-    userId: currentUser.sub,
-    username: currentUser.username,
-    action: 'check',
-    module: 'site',
-    description: '检测站点健康状态',
-    detail: { id, url: site.url, ...result },
-  })
-
-  return c.json(ok(result))
-})
-
-siteRoutes.post('/check-all', async (c) => {
-  const rows = await c.env.DB.prepare('SELECT id, url FROM sites WHERE visible = 1 ORDER BY updated_at DESC LIMIT 50').all<{ id: string; url: string }>()
-  const results = []
-  for (const site of rows.results || []) {
-    results.push({ id: site.id, ...(await updateSiteHealth(c.env, site.id, site.url)) })
-  }
-
-  const currentUser = c.get('user')
-  await writeOperationLog(c.env, {
-    userId: currentUser.sub,
-    username: currentUser.username,
-    action: 'check-all',
-    module: 'site',
-    description: '批量检测站点健康状态',
-    detail: { checked: results.length },
-  })
-
-  return c.json(ok({ checked: results.length, results }))
-})
 
 siteRoutes.delete('/:id', async (c) => {
   const id = c.req.param('id')

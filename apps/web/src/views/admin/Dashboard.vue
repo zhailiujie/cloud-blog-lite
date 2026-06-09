@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useMessage } from 'naive-ui'
+import { NButton, NCard, NEmpty, useMessage } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { getDashboardStats, type DashboardStats } from '@/api/dashboard'
 

@@ -9,11 +9,21 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/x-icon",
 ]);
 
-
-
 export interface UploadResult {
   key: string;
   url: string;
+}
+
+export interface FaviconUploadResult extends UploadResult {
+  sourceUrl: string;
+}
+
+export async function fetchFaviconToR2(url: string) {
+  const response = await http.post<ApiResponse<FaviconUploadResult>>(
+    "/admin/upload/favicon",
+    { url },
+  );
+  return response.data.data;
 }
 
 export async function uploadFile(file: File) {

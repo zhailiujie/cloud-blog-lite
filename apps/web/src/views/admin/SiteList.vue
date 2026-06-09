@@ -621,12 +621,20 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.url-link {
-  color: var(--primary-color);
+.url-link,
+.mobile-card-row a {
+  color: color-mix(in srgb, var(--primary), var(--muted) 42%);
   text-decoration: none;
 }
 
-.url-link:hover {
+.url-link:visited,
+.mobile-card-row a:visited {
+  color: color-mix(in srgb, var(--primary), var(--muted) 52%);
+}
+
+.url-link:hover,
+.mobile-card-row a:hover {
+  color: var(--primary);
   text-decoration: underline;
 }
 

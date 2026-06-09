@@ -1,6 +1,6 @@
 <template>
   <PageHeader title="操作日志" subtitle="Operation Logs">
-    <n-button @click="handleCleanup">清理 90 天前日志</n-button>
+    <n-button @click="handleCleanup">清理 7 天前日志</n-button>
   </PageHeader>
   <n-card class="mb-16 filter-card">
     <n-space align="center">
@@ -134,12 +134,12 @@ function formatDetail(detail?: string | null) {
 function handleCleanup() {
   dialog.warning({
     title: '确认清理日志',
-    content: '确定清理 90 天前的操作日志吗？该操作不可恢复。',
+    content: '确定清理 7 天前的操作日志吗？该操作不可恢复。',
     positiveText: '清理',
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const result = await cleanupOperationLogs(90)
+        const result = await cleanupOperationLogs(7)
         message.success(`已清理 ${result?.deleted || 0} 条日志`)
         await loadLogs()
       } catch {

@@ -33,6 +33,12 @@ function toLog(row: LogRow) {
   }
 }
 
+export async function cleanupOperationLogs(env: Env, beforeDays = 7) {
+  const before = new Date(Date.now() - beforeDays * 24 * 60 * 60 * 1000).toISOString()
+  const result = await env.DB.prepare('DELETE FROM operation_logs WHERE created_at < ?').bind(before).run()
+  return { deleted: result.meta.changes || 0, before }
+}
+
 export const logRoutes = new Hono<{ Bindings: Env; Variables: AuthVariables }>()
 
 logRoutes.get('/', async (c) => {
@@ -87,13 +93,12 @@ logRoutes.get('/', async (c) => {
 })
 
 logRoutes.delete('/cleanup', async (c) => {
-  const beforeDays = Number(c.req.query('beforeDays') || 90)
+  const beforeDays = Number(c.req.query('beforeDays') || 7)
   if (!Number.isFinite(beforeDays) || beforeDays < 1 || beforeDays > 3650) {
     return c.json(fail('Invalid beforeDays', 400), 400)
   }
 
-  const before = new Date(Date.now() - beforeDays * 24 * 60 * 60 * 1000).toISOString()
-  const result = await c.env.DB.prepare('DELETE FROM operation_logs WHERE created_at < ?').bind(before).run()
+  const result = await cleanupOperationLogs(c.env, beforeDays)
   const currentUser = c.get('user')
   await writeOperationLog(c.env, {
     userId: currentUser.sub,
@@ -101,8 +106,8 @@ logRoutes.delete('/cleanup', async (c) => {
     action: 'cleanup',
     module: 'operation-log',
     description: `清理 ${beforeDays} 天前操作日志`,
-    detail: { deleted: result.meta.changes || 0, before },
+    detail: result,
   })
 
-  return c.json(ok({ deleted: result.meta.changes || 0, before }))
+  return c.json(ok(result))
 })

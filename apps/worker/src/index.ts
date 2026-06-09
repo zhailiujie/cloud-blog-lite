@@ -6,7 +6,7 @@ import { backupRoutes } from "./modules/backup/routes";
 import { categoryRoutes } from "./modules/category/routes";
 import { dashboardRoutes } from "./modules/dashboard/routes";
 
-import { logRoutes } from "./modules/log/routes";
+import { cleanupOperationLogs, logRoutes } from "./modules/log/routes";
 import { publicRoutes } from "./modules/public/routes";
 import { settingRoutes } from "./modules/setting/routes";
 import { setupRoutes } from "./modules/setup/routes";
@@ -63,6 +63,6 @@ app.notFound((c) =>
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(runD1Backup(env));
+    ctx.waitUntil(Promise.all([runD1Backup(env), cleanupOperationLogs(env, 7)]));
   },
 };

@@ -21,6 +21,7 @@ dashboardRoutes.get('/stats', async (c) => {
     userCountResult,
     logCountResult,
     recentSites,
+    popularSites,
     recentLogs,
   ] = await c.env.DB.batch([
     c.env.DB.prepare('SELECT COUNT(1) AS total FROM categories'),
@@ -36,6 +37,14 @@ dashboardRoutes.get('/stats', async (c) => {
        LIMIT 6`,
     ),
     c.env.DB.prepare(
+      `SELECT s.id, s.name, s.url, s.click_count, c.name AS category_name
+       FROM sites s
+       LEFT JOIN categories c ON c.id = s.category_id
+       WHERE s.visible = 1 AND s.click_count > 0
+       ORDER BY s.click_count DESC, s.created_at DESC
+       LIMIT 6`,
+    ),
+    c.env.DB.prepare(
       `SELECT id, username, action, module, description, created_at
        FROM operation_logs
        ORDER BY created_at DESC
@@ -48,6 +57,7 @@ dashboardRoutes.get('/stats', async (c) => {
     D1Result<CountRow>,
     D1Result<CountRow>,
     D1Result<{ id: string; name: string; url: string; created_at: string; category_name: string | null }>,
+    D1Result<{ id: string; name: string; url: string; click_count: number; category_name: string | null }>,
     D1Result<{ id: string; username: string | null; action: string; module: string | null; description: string | null; created_at: string }>,
   ]
 
@@ -61,6 +71,7 @@ dashboardRoutes.get('/stats', async (c) => {
         logs: total(logCountResult),
       },
       recentSites: recentSites.results || [],
+      popularSites: popularSites.results || [],
       recentLogs: recentLogs.results || [],
     }),
   )

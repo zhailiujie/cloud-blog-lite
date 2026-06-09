@@ -1,7 +1,16 @@
 import type { Env } from "../../env";
 import { toBase64 } from "../../utils/base64";
 
-const TABLES = ["users", "categories", "sites", "settings"] as const;
+const TABLES = [
+  "users",
+  "categories",
+  "sites",
+  "tags",
+  "site_tags",
+  "settings",
+] as const;
+const BACKUP_RETENTION_DAYS = 3;
+const BACKUP_PREFIX = "backups/d1/daily/";
 
 export interface BackupResult {
   ok: boolean;
@@ -13,6 +22,11 @@ export interface BackupResult {
     enabled: boolean;
     sent: boolean;
     error?: string;
+  };
+  cleanup: {
+    retentionDays: number;
+    cutoff: string;
+    deleted: number;
   };
   createdAt: string;
 }
@@ -54,7 +68,7 @@ function buildBackupKey(date: Date): { key: string; fileName: string } {
   const stamp = `${year}-${month}-${day}T${hour}-${minute}-${second}Z`;
   const fileName = `cloud-blog-lite-d1-${stamp}.json.gz`;
   return {
-    key: `backups/d1/daily/${year}-${month}-${day}/${fileName}`,
+    key: `${BACKUP_PREFIX}${year}-${month}-${day}/${fileName}`,
     fileName,
   };
 }
@@ -94,8 +108,6 @@ async function gzipJson(payload: BackupPayload): Promise<Uint8Array> {
   const compressed = await new Response(stream).arrayBuffer();
   return new Uint8Array(compressed);
 }
-
-
 
 async function sendBackupEmail(
   env: Env,
@@ -155,6 +167,31 @@ async function sendBackupEmail(
   };
 }
 
+async function cleanupOldBackups(env: Env, now: Date) {
+  const cutoffTime =
+    now.getTime() - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const cutoff = new Date(cutoffTime).toISOString();
+  let deleted = 0;
+  let cursor: string | undefined;
+
+  do {
+    const result = await env.R2.list({ cursor, prefix: BACKUP_PREFIX });
+    for (const object of result.objects) {
+      if (object.uploaded.getTime() < cutoffTime) {
+        await env.R2.delete(object.key);
+        deleted += 1;
+      }
+    }
+    cursor = result.truncated ? result.cursor : undefined;
+  } while (cursor);
+
+  return {
+    retentionDays: BACKUP_RETENTION_DAYS,
+    cutoff,
+    deleted,
+  };
+}
+
 export async function runD1Backup(
   env: Env,
   now = new Date(),
@@ -193,6 +230,7 @@ export async function runD1Backup(
     },
   });
 
+  const cleanup = await cleanupOldBackups(env, now);
   const email = await sendBackupEmail(env, fileName, compressed, tableCounts);
 
   return {
@@ -202,6 +240,7 @@ export async function runD1Backup(
     bytes: compressed.byteLength,
     tableCounts,
     email,
+    cleanup,
     createdAt,
   };
 }

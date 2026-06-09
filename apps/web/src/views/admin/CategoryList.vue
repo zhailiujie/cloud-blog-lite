@@ -18,7 +18,7 @@
         <div class="mobile-card-head">
           <div>
             <strong>{{ category.name }}</strong>
-            <small>{{ category.icon || '无图标' }}</small>
+            <small>{{ parentName(category.parentId) }}</small>
           </div>
           <n-switch :value="category.visible === 1" disabled />
         </div>
@@ -39,11 +39,9 @@
         <n-input v-model:value="form.name" placeholder="请输入分类名称" />
       </n-form-item>
       <n-form-item label="父级分类">
-        <n-select v-model:value="form.parentId" :options="parentOptions" placeholder="请选择父级分类" />
+        <n-select filterable v-model:value="form.parentId" :options="parentOptions" placeholder="请选择父级分类" />
       </n-form-item>
-      <n-form-item label="图标">
-        <n-input v-model:value="form.icon" placeholder="例如 💻 或 fa fa-code" />
-      </n-form-item>
+
       <n-grid :cols="2" :x-gap="12">
         <n-form-item-gi label="排序">
           <n-input-number v-model:value="form.sort" class="full-width" />
@@ -125,7 +123,6 @@ function parentName(parentId: string) {
 
 const columns: DataTableColumns<Category> = [
   { title: '名称', key: 'name' },
-  { title: '图标', key: 'icon', width: 100 },
   { title: '父级', key: 'parentId', width: 160, render(row) { return parentName(row.parentId) } },
   { title: '排序', key: 'sort', width: 90 },
   { title: '层级', key: 'level', width: 90 },
@@ -171,7 +168,7 @@ function openEdit(row: Category) {
   editingId.value = row.id
   form.parentId = row.parentId
   form.name = row.name
-  form.icon = row.icon || ''
+  form.icon = ''
   form.sort = row.sort
   form.level = row.level || 1
   form.visible = row.visible

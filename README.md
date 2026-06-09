@@ -17,6 +17,12 @@
 - 导航首页
 - 分类侧栏
 - 站点卡片展示
+- 站点置顶优先展示
+- 站点标签展示与标签筛选
+- 热门站点排行
+- 站点点击统计上报
+- 站点健康状态展示
+- SEO meta、robots.txt 与 sitemap.xml
 - 关键词搜索
 - 主题切换
 - Logo / 站点基础信息展示
@@ -28,9 +34,14 @@
 - 仪表盘
 - 分类管理
 - 站点管理
+- 站点置顶与点击量查看
+- Dashboard 热门站点排行
+- 站点健康检查 / 死链检测
+- 站点 JSON 导入 / 导出
+- 标签管理与站点标签绑定
 - 用户管理
 - 系统设置
-- 操作日志
+- 操作日志，记录站点导入导出、健康检测、标签管理等关键后台操作
 - 图片上传，限制 1MB
 - 文件访问接口
 - D1 备份到 R2
@@ -42,10 +53,11 @@
 - 管理端鉴权中间件
 - 管理员角色校验
 - D1 数据库访问
+- D1 migration 管理站点置顶、点击统计、标签系统等增量字段和表
 - R2 文件上传与访问
 - 统一响应格式
 - 统一错误处理
-- 操作日志记录
+- 操作日志记录与关键操作审计
 - 初始化管理员接口
 - Cron 定时备份
 - 健康检查接口
@@ -212,10 +224,13 @@ cp apps/worker/wrangler.production.example.toml apps/worker/wrangler.production.
 
 然后在 `wrangler.production.toml` 里填写真实生产配置。
 
-更多部署与新电脑初始化说明见：
+更多说明见：
 
 ```text
-docs/deployment-and-redeploy.md
+docs/deployment-and-redeploy.md  # 部署与重新部署
+docs/features.md                 # 功能说明
+docs/migrations.md               # 数据库 migration
+docs/operations.md               # 运维说明
 ```
 
 ## Cloudflare 部署
@@ -237,6 +252,31 @@ pnpm --filter @cloud-blog-lite/worker exec wrangler secret put RESEND_API_KEY
 ```
 
 不要把 Secret 写入代码、文档、截图或 Git。
+
+### 数据库 Migration
+
+功能迭代可能会新增 D1 字段或数据表。部署新版 Worker / Pages 前，建议先应用数据库 migration：
+
+本地环境：
+
+```bash
+pnpm d1:migrate:local
+```
+
+生产环境：
+
+```bash
+pnpm d1:migrate:remote
+```
+
+当前线上已应用的增量结构包括：
+
+| 对象 | 说明 |
+| --- | --- |
+| `sites.is_pinned` | 站点置顶字段 |
+| `sites.click_count`、`sites.last_clicked_at` | 站点点击统计字段 |
+| `tags`、`site_tags` | 标签和站点标签关联表 |
+| `sites.health_status`、`sites.http_status`、`sites.last_checked_at`、`sites.health_error` | 站点健康检查字段 |
 
 ### 部署 Worker
 
@@ -278,12 +318,13 @@ Worker 统一挂载在 `/api` 下：
 
 | API 前缀 | 说明 |
 | --- | --- |
-| `/api/public` | 公开导航接口 |
+| `/api/public` | 公开导航接口、站点点击统计上报、sitemap.xml |
 | `/api/files` | 文件访问接口 |
 | `/api/auth` | 登录、退出、当前用户 |
-| `/api/admin/dashboard` | 仪表盘 |
+| `/api/admin/dashboard` | 仪表盘，包含热门站点排行 |
 | `/api/admin/categories` | 分类管理 |
-| `/api/admin/sites` | 站点管理 |
+| `/api/admin/sites` | 站点管理，包含 JSON 导入 / 导出 |
+| `/api/admin/tags` | 标签管理 |
 | `/api/admin/users` | 用户管理 |
 | `/api/admin/upload` | 上传接口 |
 | `/api/admin/settings` | 系统设置 |
@@ -306,7 +347,9 @@ apps/worker/migrations/0001_initial.sql
 | --- | --- |
 | `users` | 用户与管理员账号 |
 | `categories` | 分类 |
-| `sites` | 站点 |
+| `sites` | 站点，包含置顶、点击量、健康检查等展示与统计字段 |
+| `tags` | 标签 |
+| `site_tags` | 站点与标签关联 |
 | `settings` | 系统设置 |
 | `operation_logs` | 操作日志 |
 

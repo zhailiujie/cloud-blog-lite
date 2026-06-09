@@ -3,6 +3,7 @@ import type { Env } from '../../env'
 import type { AuthVariables } from '../../middleware/auth'
 import { fail, ok } from '../../utils/response'
 import { parsePagination } from '../../utils/pagination'
+import { writeOperationLog } from '../../utils/log'
 
 interface LogRow {
   id: string
@@ -36,14 +37,45 @@ export const logRoutes = new Hono<{ Bindings: Env; Variables: AuthVariables }>()
 
 logRoutes.get('/', async (c) => {
   const pagination = parsePagination((name) => c.req.query(name))
+  const conditions: string[] = []
+  const params: Array<string | number> = []
+  const module = c.req.query('module')?.trim()
+  const action = c.req.query('action')?.trim()
+  const username = c.req.query('username')?.trim()
+  const startAt = c.req.query('startAt')?.trim()
+  const endAt = c.req.query('endAt')?.trim()
+
+  if (module) {
+    conditions.push('module = ?')
+    params.push(module)
+  }
+  if (action) {
+    conditions.push('action = ?')
+    params.push(action)
+  }
+  if (username) {
+    conditions.push('username LIKE ?')
+    params.push(`%${username}%`)
+  }
+  if (startAt) {
+    conditions.push('created_at >= ?')
+    params.push(startAt)
+  }
+  if (endAt) {
+    conditions.push('created_at <= ?')
+    params.push(endAt)
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
   const [rows, totalResult] = await c.env.DB.batch([
     c.env.DB.prepare(
       `SELECT id, user_id, username, action, module, description, detail, ip, user_agent, created_at
        FROM operation_logs
+       ${where}
        ORDER BY created_at DESC
        LIMIT ? OFFSET ?`,
-    ).bind(pagination.pageSize, pagination.offset),
-    c.env.DB.prepare('SELECT COUNT(1) AS total FROM operation_logs'),
+    ).bind(...params, pagination.pageSize, pagination.offset),
+    c.env.DB.prepare(`SELECT COUNT(1) AS total FROM operation_logs ${where}`).bind(...params),
   ]) as [D1Result<LogRow>, D1Result<{ total: number }>]
 
   return c.json(ok({
@@ -62,5 +94,15 @@ logRoutes.delete('/cleanup', async (c) => {
 
   const before = new Date(Date.now() - beforeDays * 24 * 60 * 60 * 1000).toISOString()
   const result = await c.env.DB.prepare('DELETE FROM operation_logs WHERE created_at < ?').bind(before).run()
+  const currentUser = c.get('user')
+  await writeOperationLog(c.env, {
+    userId: currentUser.sub,
+    username: currentUser.username,
+    action: 'cleanup',
+    module: 'operation-log',
+    description: `清理 ${beforeDays} 天前操作日志`,
+    detail: { deleted: result.meta.changes || 0, before },
+  })
+
   return c.json(ok({ deleted: result.meta.changes || 0, before }))
 })

@@ -16,6 +16,14 @@ export interface DashboardStats {
     categoryName?: string | null
     category_name?: string | null
   }>
+  popularSites: Array<{
+    id: string
+    name: string
+    url: string
+    click_count: number
+    categoryName?: string | null
+    category_name?: string | null
+  }>
   recentLogs: Array<{
     id: string
     username?: string | null

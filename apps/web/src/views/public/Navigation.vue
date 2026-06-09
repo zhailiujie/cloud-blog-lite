@@ -19,9 +19,46 @@
       <!--<h1>精选<span class="hero-accent">资源</span>，一键直达</h1>-->
       <!--<p>{{ navigation?.settings.description || '精选工具与资源，分类整理，一键直达。' }}</p>-->
       <div class="search-card glass-panel">
-        <n-input v-model:value="keyword" size="large" round placeholder="搜索站点、工具或资源">
+        <n-input ref="searchInputRef" v-model:value="keyword" size="large" round placeholder="搜索站点、工具或资源">
           <template #prefix>🔎</template>
         </n-input>
+      </div>
+      <div v-if="allTags.length" class="tag-filter glass-panel">
+        <button class="tag-filter-item" :class="{ active: !selectedTagId }" @click="selectedTagId = ''">全部标签</button>
+        <button
+          v-for="tag in allTags"
+          :key="tag.id"
+          class="tag-filter-item"
+          :class="{ active: selectedTagId === tag.id }"
+          :style="{ '--tag-color': tag.color || 'var(--primary)' }"
+          @click="selectedTagId = selectedTagId === tag.id ? '' : tag.id"
+        >
+          {{ tag.name }}
+        </button>
+      </div>
+    </section>
+
+    <section v-if="popularSites.length" class="popular-section glass-panel">
+      <div class="section-title compact-title">
+        <div>
+          <p>热门访问</p>
+          <h2>热门站点</h2>
+        </div>
+      </div>
+      <div class="site-grid">
+        <SiteCard
+          v-for="site in popularSites"
+          :key="`popular-${site.id}`"
+          :site-id="site.id"
+          :name="site.name"
+          :url="site.url"
+          :description="site.description || ''"
+          :logo="site.logo || ''"
+          :is-pinned="site.isPinned === 1"
+          :tags="site.tags || []"
+          :click-count="site.clickCount || 0"
+          @tag-click="selectedTagId = $event"
+        />
       </div>
     </section>
 
@@ -74,10 +111,15 @@
               <SiteCard
                 v-for="site in category.sites"
                 :key="site.id"
+                :site-id="site.id"
                 :name="site.name"
                 :url="site.url"
                 :description="site.description || ''"
                 :logo="site.logo || ''"
+                :is-pinned="site.isPinned === 1"
+                :tags="site.tags || []"
+                :click-count="site.clickCount || 0"
+                @tag-click="selectedTagId = $event"
               />
             </div>
           </div>
@@ -97,6 +139,8 @@ import SiteCard from '@/components/SiteCard.vue'
 import { getNavigation, type NavigationData, type PublicCategory } from '@/api/public'
 
 const keyword = ref('')
+const selectedTagId = ref('')
+const searchInputRef = ref<{ focus?: () => void } | null>(null)
 const activeCategory = ref('')
 const loading = ref(true)
 const navigation = ref<NavigationData | null>(null)
@@ -107,19 +151,39 @@ const sectionRefs: Record<string, HTMLElement> = {}
 let scrollObserver: IntersectionObserver | null = null
 
 const categories = computed(() => navigation.value?.categories || [])
+const allTags = computed(() => {
+  const map = new Map<string, { id: string; name: string; color?: string | null }>()
+  for (const category of categories.value) {
+    for (const site of category.sites) {
+      for (const tag of site.tags || []) {
+        map.set(tag.id, tag)
+      }
+    }
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+})
+const allSites = computed(() => categories.value.flatMap((category) => category.sites))
+const popularSites = computed(() => allSites.value
+  .filter((site) => Number(site.clickCount || 0) > 0)
+  .sort((a, b) => Number(b.clickCount || 0) - Number(a.clickCount || 0))
+  .slice(0, 10))
 
 /** 按关键词过滤：仅保留有匹配站点的分类 */
 const filteredCategories = computed((): PublicCategory[] => {
   const key = keyword.value.trim().toLowerCase()
-  if (!key) return categories.value
+  const tagId = selectedTagId.value
+  if (!key && !tagId) return categories.value
   return categories.value
     .map((cat) => ({
       ...cat,
-      sites: cat.sites.filter(
-        (site) =>
+      sites: cat.sites.filter((site) => {
+        const matchedKeyword = !key ||
           site.name.toLowerCase().includes(key) ||
-          (site.description || '').toLowerCase().includes(key),
-      ),
+          (site.description || '').toLowerCase().includes(key) ||
+          (site.tags || []).some((tag) => tag.name.toLowerCase().includes(key))
+        const matchedTag = !tagId || (site.tags || []).some((tag) => tag.id === tagId)
+        return matchedKeyword && matchedTag
+      }),
     }))
     .filter((cat) => cat.sites.length > 0)
 })
@@ -175,11 +239,33 @@ watch(categories, (value) => {
   }
 })
 
+function updatePageMeta(data: NavigationData | null) {
+  const title = data?.settings.title || 'cloud-blog-lite'
+  const description = data?.settings.description || '轻量导航站'
+  document.title = title
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = 'description'
+    document.head.appendChild(meta)
+  }
+  meta.content = description
+}
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
+  const target = event.target as HTMLElement | null
+  if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return
+  event.preventDefault()
+  searchInputRef.value?.focus?.()
+}
+
 onMounted(async () => {
   loading.value = true
   try {
     navigation.value = await getNavigation()
-    document.title = navigation.value?.settings.title || 'cloud-blog-lite'
+    updatePageMeta(navigation.value)
+    window.addEventListener('keydown', handleGlobalKeydown)
   } finally {
     loading.value = false
   }
@@ -187,6 +273,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   scrollObserver?.disconnect()
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>
 
@@ -213,6 +300,45 @@ onUnmounted(() => {
 .landing-hero p {
   font-size: 15px;
   margin-bottom: 22px;
+}
+
+.tag-filter {
+  max-width: 760px;
+  margin: 14px auto 0;
+  padding: 8px;
+  border-radius: 999px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tag-filter-item {
+  border: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: var(--tag-color, var(--muted));
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tag-filter-item.active,
+.tag-filter-item:hover {
+  color: var(--tag-color, var(--primary));
+  background: color-mix(in srgb, var(--tag-color, var(--primary)), transparent 86%);
+}
+
+.popular-section {
+  max-width: 1180px;
+  margin: 0 auto 24px;
+  padding: 18px;
+  border-radius: 24px;
+}
+
+.compact-title {
+  margin-bottom: 12px;
 }
 
 /* ── 分类侧栏 ───────────────────────────────────────────────── */

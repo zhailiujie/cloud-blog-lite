@@ -1,12 +1,22 @@
 <template>
   <PageHeader title="站点管理" subtitle="Sites">
-    <n-button type="primary" @click="openCreate">新增站点</n-button>
+    <n-space>
+      <n-button :loading="checkingAll" @click="handleCheckAllSites">检测全部</n-button>
+      <n-button @click="handleExportSites">导出</n-button>
+      <n-button @click="triggerImport">导入</n-button>
+      <n-button type="primary" @click="openCreate">新增站点</n-button>
+    </n-space>
   </PageHeader>
+  <input ref="importInput" type="file" accept="application/json,.json" class="hidden-file-input" @change="handleImportFile" />
 
   <n-card class="mb-16 filter-card">
     <n-space align="center">
       <n-input v-model:value="query.keyword" clearable placeholder="搜索站点名称、描述或 URL" class="filter-input" />
-      <n-select v-model:value="query.categoryId" clearable placeholder="选择分类" :options="categoryOptions" class="filter-select" />
+      <n-select filterable v-model:value="query.categoryId" clearable placeholder="选择分类" :options="categoryOptions" class="filter-select" />
+      <n-select filterable v-model:value="query.tagId" clearable placeholder="选择标签" :options="tagOptions" class="filter-select" />
+      <n-select filterable v-model:value="query.healthStatus" clearable placeholder="健康状态" :options="healthOptions" class="filter-select" />
+      <n-select filterable v-model:value="query.visible" clearable placeholder="显示状态" :options="visibleOptions" class="filter-select" />
+      <n-select filterable v-model:value="query.isPinned" clearable placeholder="置顶状态" :options="pinnedOptions" class="filter-select" />
       <n-button @click="loadSites">查询</n-button>
     </n-space>
   </n-card>
@@ -42,6 +52,18 @@
           <b>{{ visiblePasswords[site.id] ? site.password : '••••••••' }}</b>
         </div>
         <div class="mobile-card-row">
+          <span>置顶</span>
+          <b>{{ site.isPinned === 1 ? '是' : '否' }}</b>
+        </div>
+        <div class="mobile-card-row">
+          <span>点击</span>
+          <b>{{ site.clickCount }}</b>
+        </div>
+        <div class="mobile-card-row">
+          <span>健康</span>
+          <b>{{ healthLabel(site) }}</b>
+        </div>
+        <div class="mobile-card-row">
           <span>排序</span>
           <b>{{ site.sort }}</b>
         </div>
@@ -59,7 +81,10 @@
   <n-modal v-model:show="showModal" preset="card" :title="editingId ? '编辑站点' : '新增站点'" class="form-modal large">
     <n-form label-placement="top">
       <n-form-item label="所属分类" required>
-        <n-select v-model:value="form.categoryId" :options="categoryOptions" placeholder="请选择分类" />
+        <n-select filterable v-model:value="form.categoryId" :options="categoryOptions" placeholder="请选择分类" />
+      </n-form-item>
+      <n-form-item label="标签">
+        <n-select v-model:value="form.tagIds" multiple clearable filterable :options="tagOptions" placeholder="请选择标签" />
       </n-form-item>
       <n-form-item label="站点名称" required>
         <n-input v-model:value="form.name" placeholder="请输入站点名称" />
@@ -88,9 +113,12 @@
       <n-form-item label="描述">
         <n-input v-model:value="form.description" type="textarea" placeholder="请输入站点描述" />
       </n-form-item>
-      <n-grid :cols="2" :x-gap="12">
+      <n-grid :cols="3" :x-gap="12">
         <n-form-item-gi label="排序">
           <n-input-number v-model:value="form.sort" class="full-width" />
+        </n-form-item-gi>
+        <n-form-item-gi label="是否置顶">
+          <n-switch v-model:value="pinnedChecked" />
         </n-form-item-gi>
         <n-form-item-gi label="是否显示">
           <n-switch v-model:value="visibleChecked" />
@@ -108,26 +136,51 @@
 
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NSwitch, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NSpace, NSwitch, NTag, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
 import { getCategoryOptions, type Category } from '@/api/categories'
-import { createSite, deleteSite, getSites, updateSite, type Site, type SitePayload } from '@/api/sites'
+import { checkAllSites, checkSite, createSite, deleteSite, exportSiteData, getSites, importSiteData, updateSite, type Site, type SitePayload } from '@/api/sites'
 import { uploadFile } from '@/api/upload'
+import { getTagOptions, type Tag } from '@/api/tags'
 
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
 const saving = ref(false)
+const checkingAll = ref(false)
 const fetchingFavicon = ref(false)
+const importInput = ref<HTMLInputElement | null>(null)
 const showModal = ref(false)
 const editingId = ref<string | null>(null)
 const categories = ref<Category[]>([])
+const tags = ref<Tag[]>([])
 const sites = ref<Site[]>([])
 const visiblePasswords = ref<Record<string, boolean>>({})
-const query = reactive({ keyword: '', categoryId: null as string | null })
-const form = reactive<SitePayload>({ categoryId: '', name: '', url: '', description: '', logo: '', account: '', password: '', sort: 0, visible: 1 })
+const checkingSiteId = ref<string | null>(null)
+const query = reactive({ keyword: '', categoryId: null as string | null, tagId: null as string | null, healthStatus: null as string | null, visible: null as number | null, isPinned: null as number | null })
+const form = reactive<SitePayload>({ categoryId: '', name: '', url: '', description: '', logo: '', account: '', password: '', sort: 0, isPinned: 0, visible: 1, tagIds: [] })
 
 const categoryOptions = computed(() => categories.value.map((item) => ({ label: item.name, value: item.id })))
+const tagOptions = computed(() => tags.value.map((item) => ({ label: item.name, value: item.id })))
+const healthOptions = [
+  { label: '未检测', value: 'unknown' },
+  { label: '正常', value: 'ok' },
+  { label: '异常', value: 'error' },
+]
+const visibleOptions = [
+  { label: '显示', value: 1 },
+  { label: '隐藏', value: 0 },
+]
+const pinnedOptions = [
+  { label: '置顶', value: 1 },
+  { label: '未置顶', value: 0 },
+]
+const pinnedChecked = computed({
+  get: () => form.isPinned === 1,
+  set: (value: boolean) => {
+    form.isPinned = value ? 1 : 0
+  },
+})
 const visibleChecked = computed({
   get: () => form.visible !== 0,
   set: (value: boolean) => {
@@ -141,6 +194,9 @@ const columns: DataTableColumns<Site> = [
   { title: 'URL', key: 'url', width: 280, render(row) { return renderUrl(row.url) } },
   { title: '账号', key: 'account', width: 180, render(row) { return row.account ? renderCopyText(row.account, maskText(row.account, 18)) : '-' } },
   { title: '密码', key: 'password', minWidth: 170, render(row) { return row.password ? renderPassword(row) : '-' } },
+  { title: '置顶', key: 'isPinned', width: 80, render(row) { return row.isPinned === 1 ? '是' : '-' } },
+  { title: '点击', key: 'clickCount', width: 90 },
+  { title: '健康', key: 'healthStatus', width: 120, render(row) { return renderHealth(row) } },
   { title: '排序', key: 'sort', width: 80 },
   {
     title: '显示',
@@ -158,6 +214,7 @@ const columns: DataTableColumns<Site> = [
     render(row) {
       return h(NSpace, null, {
         default: () => [
+          h(NButton, { size: 'small', loading: checkingSiteId.value === row.id, onClick: () => handleCheckSite(row) }, { default: () => '检测' }),
           h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
           h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => confirmDelete(row) }, { default: () => '删除' }),
         ],
@@ -166,6 +223,17 @@ const columns: DataTableColumns<Site> = [
   },
 ]
 
+
+function healthLabel(row: Site) {
+  if (row.healthStatus === 'ok') return row.httpStatus ? `正常 ${row.httpStatus}` : '正常'
+  if (row.healthStatus === 'error') return row.httpStatus ? `异常 ${row.httpStatus}` : '异常'
+  return '未检测'
+}
+
+function renderHealth(row: Site) {
+  const type = row.healthStatus === 'ok' ? 'success' : row.healthStatus === 'error' ? 'error' : 'default'
+  return h(NTag, { size: 'small', type, bordered: false, title: row.healthError || row.lastCheckedAt || '' }, { default: () => healthLabel(row) })
+}
 
 function copyText(value: string) {
   navigator.clipboard?.writeText(value)
@@ -282,7 +350,9 @@ function resetForm() {
   form.logo = ''
   form.account = ''
   form.password = ''
+  form.tagIds = []
   form.sort = 0
+  form.isPinned = 0
   form.visible = 1
 }
 
@@ -309,7 +379,9 @@ function openEdit(row: Site) {
   form.logo = row.logo || ''
   form.account = row.account || ''
   form.password = row.password || ''
+  form.tagIds = row.tagIds || row.tags?.map((tag) => tag.id) || []
   form.sort = row.sort
+  form.isPinned = row.isPinned
   form.visible = row.visible
   showModal.value = true
 }
@@ -322,10 +394,18 @@ async function loadCategories() {
   }
 }
 
+async function loadTags() {
+  try {
+    tags.value = await getTagOptions()
+  } catch {
+    message.error('标签加载失败，请刷新重试')
+  }
+}
+
 async function loadSites() {
   loading.value = true
   try {
-    sites.value = await getSites({ keyword: query.keyword, categoryId: query.categoryId || undefined })
+    sites.value = await getSites({ keyword: query.keyword, categoryId: query.categoryId || undefined, tagId: query.tagId || undefined, healthStatus: query.healthStatus || undefined, visible: query.visible ?? undefined, isPinned: query.isPinned ?? undefined })
   } catch {
     message.error('加载失败，请刷新重试')
   } finally {
@@ -406,6 +486,79 @@ async function handleLogoUpload(options: { file: { file?: File | null }; onFinis
   }
 }
 
+async function handleExportSites() {
+  try {
+    const data = await exportSiteData()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `cloud-blog-lite-sites-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch {
+    message.error('导出失败')
+  }
+}
+
+function triggerImport() {
+  importInput.value?.click()
+}
+
+async function handleImportFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  try {
+    const text = await file.text()
+    const payload = JSON.parse(text)
+    const preview = await importSiteData(payload, true)
+    const confirmed = window.confirm(`预计导入：分类 ${preview?.importedCategories || 0}，标签 ${preview?.importedTags || 0}，站点 ${preview?.importedSites || 0}，跳过 ${preview?.skippedSites || 0}。确认导入吗？`)
+    if (!confirmed) return
+    const result = await importSiteData(payload)
+    message.success(`导入完成：分类 ${result?.importedCategories || 0}，标签 ${result?.importedTags || 0}，站点 ${result?.importedSites || 0}，跳过 ${result?.skippedSites || 0}`)
+    await loadCategories()
+    await loadTags()
+    await loadSites()
+  } catch {
+    message.error('导入失败，请确认文件格式正确')
+  }
+}
+
+async function handleCheckSite(row: Site) {
+  checkingSiteId.value = row.id
+  try {
+    const result = await checkSite(row.id)
+    if (result) {
+      row.healthStatus = result.healthStatus
+      row.httpStatus = result.httpStatus
+      row.lastCheckedAt = result.lastCheckedAt
+      row.healthError = result.healthError
+    }
+    message.success('检测完成')
+  } catch {
+    message.error('检测失败')
+  } finally {
+    checkingSiteId.value = null
+  }
+}
+
+async function handleCheckAllSites() {
+  checkingAll.value = true
+  try {
+    const result = await checkAllSites()
+    message.success(`已检测 ${result?.checked || 0} 个站点`)
+    await loadSites()
+  } catch {
+    message.error('批量检测失败')
+  } finally {
+    checkingAll.value = false
+  }
+}
+
 async function handleSave() {
   if (!form.categoryId || !form.name?.trim() || !form.url?.trim()) {
     message.warning('请填写分类、名称和 URL')
@@ -453,6 +606,7 @@ function confirmDelete(row: Site) {
 
 onMounted(async () => {
   await loadCategories()
+  await loadTags()
   await loadSites()
 })
 </script>
@@ -474,6 +628,10 @@ onMounted(async () => {
 
 .url-link:hover {
   text-decoration: underline;
+}
+
+.hidden-file-input {
+  display: none;
 }
 
 </style>

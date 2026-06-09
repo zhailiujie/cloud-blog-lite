@@ -60,7 +60,7 @@
       </n-form-item>
       <n-grid :cols="2" :x-gap="12">
         <n-form-item-gi label="角色">
-          <n-select v-model:value="form.role" :options="roleOptions" />
+          <n-select filterable v-model:value="form.role" :options="roleOptions" />
         </n-form-item-gi>
         <n-form-item-gi label="启用状态">
           <n-switch v-model:value="statusChecked" />

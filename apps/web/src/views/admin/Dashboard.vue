@@ -22,6 +22,16 @@
       </div>
     </n-card>
 
+    <n-card title="热门站点" :loading="loading">
+      <n-empty v-if="!stats?.popularSites.length" description="暂无点击数据" />
+      <div v-else class="compact-list">
+        <a v-for="site in stats.popularSites" :key="site.id" :href="safeUrl(site.url)" target="_blank" rel="noreferrer">
+          <span>{{ site.name }}</span>
+          <small>{{ site.click_count }} 次 · {{ site.categoryName ?? site.category_name ?? '未分类' }}</small>
+        </a>
+      </div>
+    </n-card>
+
     <n-card title="最近操作" :loading="loading">
       <n-empty v-if="!stats?.recentLogs.length" description="暂无日志" />
       <div v-else class="compact-list">

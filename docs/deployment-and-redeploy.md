@@ -363,8 +363,10 @@ apps/worker/wrangler.production.toml
 
 ```text
 0001_initial.sql 执行成功
-远程 D1 创建 users/categories/sites/settings/operation_logs 等表
+远程 D1 创建 users/categories/sites/tags/site_tags/settings/operation_logs 等表，并补齐 sites 的置顶、点击统计与健康检查字段
 ```
+
+补充说明：公开端 SEO 相关的 `robots.txt` 随 Pages 静态资源部署，`/api/public/sitemap.xml` 由 Worker 动态返回；这两项不需要额外 D1 字段。
 
 ## 8. 部署 Worker
 
@@ -627,7 +629,7 @@ apps/worker/migrations/**
 pnpm typecheck:worker
 ```
 
-如果修改了 D1 migration：
+如果修改了 D1 migration，或包含依赖新字段/新表的功能（如站点置顶、点击统计、标签筛选、热门站点排行、站点健康检查、站点导入导出）：
 
 ```bash
 pnpm d1:migrate:remote

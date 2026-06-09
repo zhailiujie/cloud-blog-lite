@@ -5,6 +5,7 @@ import AdminLayout from '@/layouts/AdminLayout.vue'
 import Dashboard from '@/views/admin/Dashboard.vue'
 import CategoryList from '@/views/admin/CategoryList.vue'
 import SiteList from '@/views/admin/SiteList.vue'
+import TagList from '@/views/admin/TagList.vue'
 import UserList from '@/views/admin/UserList.vue'
 import Setting from '@/views/admin/Setting.vue'
 import LogList from '@/views/admin/LogList.vue'
@@ -23,6 +24,7 @@ const router = createRouter({
         { path: '', name: 'admin-dashboard', component: Dashboard },
         { path: 'categories', name: 'admin-categories', component: CategoryList },
         { path: 'sites', name: 'admin-sites', component: SiteList },
+        { path: 'tags', name: 'admin-tags', component: TagList },
         { path: 'users', name: 'admin-users', component: UserList },
         { path: 'settings', name: 'admin-settings', component: Setting },
         { path: 'logs', name: 'admin-logs', component: LogList },

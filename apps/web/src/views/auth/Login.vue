@@ -3,7 +3,7 @@
     <n-card title="登录" class="auth-card">
       <n-form>
         <n-form-item label="用户名">
-          <n-input v-model:value="form.username" placeholder="admin" />
+          <n-input v-model:value="form.username" placeholder="请输入用户名" />
         </n-form-item>
         <n-form-item label="密码">
           <n-input v-model:value="form.password" type="password" placeholder="请输入密码" @keyup.enter="handleLogin" />
@@ -30,7 +30,7 @@ const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api
 const router = useRouter()
 const message = useMessage()
 const auth = useAuthStore()
-const form = reactive({ username: 'admin', password: '' })
+const form = reactive({ username: '', password: '' })
 const turnstileEl = ref<HTMLElement | null>(null)
 const turnstileToken = ref('')
 let turnstileWidgetId: string | null = null

@@ -16,7 +16,7 @@ export interface OperationLog {
 
 
 
-export async function getOperationLogs(params?: { page?: number; pageSize?: number }): Promise<PaginatedResult<OperationLog>> {
+export async function getOperationLogs(params?: { page?: number; pageSize?: number; module?: string; action?: string; username?: string; startAt?: string; endAt?: string }): Promise<PaginatedResult<OperationLog>> {
   const response = await http.get<ApiResponse<OperationLog[] | PaginatedResult<OperationLog>>>('/admin/operation-logs', { params })
   return normalizePaginatedResult(response.data.data, params?.page, params?.pageSize)
 }

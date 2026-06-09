@@ -24,27 +24,32 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [1/5] Checking Worker types...
+echo [1/6] Checking Worker types...
 call pnpm typecheck:worker
 if errorlevel 1 goto failed
 
 echo.
-echo [2/5] Building Web...
+echo [2/6] Building Web...
 call pnpm build:web
 if errorlevel 1 goto failed
 
 echo.
-echo [3/5] Deploying Worker API...
+echo [3/6] Applying remote D1 migrations...
+call pnpm d1:migrate:remote
+if errorlevel 1 goto failed
+
+echo.
+echo [4/6] Deploying Worker API...
 call pnpm deploy:worker
 if errorlevel 1 goto failed
 
 echo.
-echo [4/5] Deploying Cloudflare Pages...
+echo [5/6] Deploying Cloudflare Pages...
 call pnpm --filter @cloud-blog-lite/worker exec wrangler pages deploy ../web/dist --project-name cloud-blog-lite --commit-dirty=true
 if errorlevel 1 goto failed
 
 echo.
-echo [5/5] Deployment completed successfully.
+echo [6/6] Deployment completed successfully.
 echo.
 pause
 exit /b 0

@@ -1,5 +1,11 @@
 import { http, type ApiResponse } from './http'
 
+export interface PublicTag {
+  id: string
+  name: string
+  color?: string | null
+}
+
 export interface PublicSite {
   id: string
   categoryId: string
@@ -8,6 +14,9 @@ export interface PublicSite {
   description?: string | null
   logo?: string | null
   sort: number
+  isPinned: number
+  clickCount: number
+  tags?: PublicTag[]
 }
 
 export interface PublicCategory {
@@ -35,4 +44,8 @@ export interface NavigationData {
 export async function getNavigation() {
   const response = await http.get<ApiResponse<NavigationData>>('/public/navigation')
   return response.data.data
+}
+
+export async function trackSiteClick(id: string) {
+  await http.post<ApiResponse<boolean>>(`/public/sites/${id}/click`)
 }

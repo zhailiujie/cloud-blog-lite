@@ -17,11 +17,9 @@
 - 导航首页
 - 分类侧栏
 - 站点卡片展示
-- 站点置顶优先展示
 - 站点标签展示与标签筛选
-- 热门站点排行
+- 站点置顶优先展示
 - 站点点击统计上报
-- 站点健康状态展示
 - SEO meta、robots.txt 与 sitemap.xml
 - 关键词搜索
 - 主题切换
@@ -35,13 +33,11 @@
 - 分类管理
 - 站点管理
 - 站点置顶与点击量查看
-- Dashboard 热门站点排行
-- 站点健康检查 / 死链检测
 - 站点 JSON 导入 / 导出
 - 标签管理与站点标签绑定
 - 用户管理
 - 系统设置
-- 操作日志，记录站点导入导出、健康检测、标签管理等关键后台操作
+- 操作日志，记录站点导入导出、标签管理等关键后台操作
 - 图片上传，限制 1MB
 - 文件访问接口
 - D1 备份到 R2
@@ -276,7 +272,6 @@ pnpm d1:migrate:remote
 | `sites.is_pinned` | 站点置顶字段 |
 | `sites.click_count`、`sites.last_clicked_at` | 站点点击统计字段 |
 | `tags`、`site_tags` | 标签和站点标签关联表 |
-| `sites.health_status`、`sites.http_status`、`sites.last_checked_at`、`sites.health_error` | 站点健康检查字段 |
 
 ### 部署 Worker
 
@@ -321,7 +316,7 @@ Worker 统一挂载在 `/api` 下：
 | `/api/public` | 公开导航接口、站点点击统计上报、sitemap.xml |
 | `/api/files` | 文件访问接口 |
 | `/api/auth` | 登录、退出、当前用户 |
-| `/api/admin/dashboard` | 仪表盘，包含热门站点排行 |
+| `/api/admin/dashboard` | 仪表盘 |
 | `/api/admin/categories` | 分类管理 |
 | `/api/admin/sites` | 站点管理，包含 JSON 导入 / 导出 |
 | `/api/admin/tags` | 标签管理 |
@@ -347,7 +342,7 @@ apps/worker/migrations/0001_initial.sql
 | --- | --- |
 | `users` | 用户与管理员账号 |
 | `categories` | 分类 |
-| `sites` | 站点，包含置顶、点击量、健康检查等展示与统计字段 |
+| `sites` | 站点，包含置顶、点击量等展示与统计字段 |
 | `tags` | 标签 |
 | `site_tags` | 站点与标签关联 |
 | `settings` | 系统设置 |

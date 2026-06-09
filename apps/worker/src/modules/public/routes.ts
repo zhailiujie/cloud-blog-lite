@@ -53,8 +53,9 @@ async function getTagsBySiteIds(env: Env, siteIds: string[]) {
   return result
 }
 
-export const publicRoutes = new Hono<{ Bindings: Env }>()
+const NAVIGATION_CACHE_TTL = 60
 
+export const publicRoutes = new Hono<{ Bindings: Env }>()
 
 publicRoutes.get('/sitemap.xml', async (c) => {
   const origin = new URL(c.req.url).origin
@@ -76,16 +77,14 @@ publicRoutes.get('/sitemap.xml', async (c) => {
 })
 
 publicRoutes.get('/navigation', async (c) => {
+  const cacheKey = new Request(new URL(c.req.url).toString(), { method: 'GET' })
+  const cached = await caches.default.match(cacheKey)
+  if (cached) return cached
+
   const categoriesResult = await c.env.DB.prepare(
     `SELECT id, parent_id, name, icon, sort, level
      FROM categories
      WHERE visible = 1
-       AND EXISTS (
-         SELECT 1
-         FROM sites
-         WHERE sites.category_id = categories.id
-           AND sites.visible = 1
-       )
      ORDER BY sort ASC, created_at ASC`,
   ).all<CategoryRow>()
 
@@ -129,7 +128,7 @@ publicRoutes.get('/navigation', async (c) => {
 
   const settings = await getPublicSettings(c.env)
 
-  return c.json(
+  const response = c.json(
     ok({
       settings: {
         title: settings['site.title'] || 'cloud-blog-lite',
@@ -140,6 +139,9 @@ publicRoutes.get('/navigation', async (c) => {
       categories,
     }),
   )
+  response.headers.set('Cache-Control', `public, max-age=${NAVIGATION_CACHE_TTL}, stale-while-revalidate=300`)
+  await caches.default.put(cacheKey, response.clone())
+  return response
 })
 
 publicRoutes.post('/sites/:id/click', async (c) => {

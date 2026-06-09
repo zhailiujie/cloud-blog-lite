@@ -1,7 +1,7 @@
 <template>
-  <a class="site-card" :href="safeUrl" target="_blank" rel="noopener noreferrer" @click="handleClick">
-    <div class="site-logo" :class="{ 'has-logo': Boolean(logo) && !logoLoadFailed }">
-      <img v-if="logo && !logoLoadFailed" :src="logo" :alt="name" loading="lazy" decoding="async" @error="logoLoadFailed = true" />
+  <a ref="cardRef" class="site-card" :href="safeUrl" target="_blank" rel="noopener noreferrer" @click="handleClick">
+    <div class="site-logo" :class="{ 'has-logo': shouldRenderLogo }">
+      <img v-if="shouldRenderLogo" :src="logo" :alt="name" decoding="async" @error="logoLoadFailed = true" />
       <span v-else>{{ firstChar }}</span>
     </div>
     <div class="site-main">
@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { trackSiteClick } from '@/api/public'
 
 const emit = defineEmits<{ tagClick: [id: string] }>()
@@ -34,12 +34,39 @@ const props = defineProps<{
 }>()
 
 const logoLoadFailed = ref(false)
+const shouldLoadLogo = ref(false)
+const cardRef = ref<HTMLElement | null>(null)
+let logoObserver: IntersectionObserver | null = null
 
 const safeUrl = computed(() => {
   const value = props.url.trim()
   return value.startsWith('http://') || value.startsWith('https://') ? value : '#'
 })
 const firstChar = computed(() => ([...props.name][0] || '').toUpperCase())
+const shouldRenderLogo = computed(() => Boolean(props.logo) && shouldLoadLogo.value && !logoLoadFailed.value)
+
+function observeLogo() {
+  logoObserver?.disconnect()
+  logoObserver = null
+
+  if (!props.logo || !cardRef.value) return
+
+  if (!('IntersectionObserver' in window)) {
+    shouldLoadLogo.value = true
+    return
+  }
+
+  logoObserver = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry.isIntersecting) return
+      shouldLoadLogo.value = true
+      logoObserver?.disconnect()
+      logoObserver = null
+    },
+    { rootMargin: '80px 0px', threshold: 0.01 },
+  )
+  logoObserver.observe(cardRef.value)
+}
 
 function handleClick() {
   if (!props.siteId || safeUrl.value === '#') return
@@ -48,6 +75,14 @@ function handleClick() {
 
 watch(() => props.logo, () => {
   logoLoadFailed.value = false
+  shouldLoadLogo.value = false
+  observeLogo()
+})
+
+onMounted(observeLogo)
+
+onUnmounted(() => {
+  logoObserver?.disconnect()
 })
 </script>
 

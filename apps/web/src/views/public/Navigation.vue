@@ -10,7 +10,6 @@
         </div>
       </div>
       <n-space align="center">
-        <n-button quaternary @click="$router.push('/login')">登录后台</n-button>
         <ThemeSwitch />
       </n-space>
     </header>
@@ -252,6 +251,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+
 /* ── Hero ──────────────────────────────────────────────────── */
 .landing-hero {
   margin-top: 48px;

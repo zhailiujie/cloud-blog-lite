@@ -21,12 +21,10 @@
         <n-input ref="searchInputRef" v-model:value="keyword" size="large" round placeholder="搜索站点、工具或资源">
           <template #prefix>🔎</template>
           <template v-if="allTags.length" #suffix>
-            <n-dropdown trigger="click" :options="tagOptions" placement="bottom-end" @select="handleSelectTag">
-              <button class="search-tag-trigger" :class="{ active: selectedTagId }" type="button">
-                <span>{{ selectedTagName || '全部标签' }}</span>
-                <span class="tag-arrow">⌄</span>
-              </button>
-            </n-dropdown>
+            <select v-model="selectedTagId" class="search-tag-select" aria-label="选择标签" @click.stop>
+              <option value="">全部标签</option>
+              <option v-for="tag in allTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
+            </select>
           </template>
         </n-input>
       </div>
@@ -134,11 +132,6 @@ const allTags = computed(() => {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
 })
-const tagOptions = computed(() => [
-  { label: '全部标签', key: '' },
-  ...allTags.value.map((tag) => ({ label: tag.name, key: tag.id })),
-])
-const selectedTagName = computed(() => allTags.value.find((tag) => tag.id === selectedTagId.value)?.name || '')
 
 
 /** 按关键词过滤：仅保留有匹配站点的分类 */
@@ -160,10 +153,6 @@ const filteredCategories = computed((): PublicCategory[] => {
     }))
     .filter((cat) => cat.sites.length > 0)
 })
-
-function handleSelectTag(key: string | number) {
-  selectedTagId.value = String(key)
-}
 
 /** 注册 / 注销各分类区块的 DOM ref */
 function registerRef(id: string, el: unknown) {
@@ -281,13 +270,10 @@ onUnmounted(() => {
   margin-bottom: 22px;
 }
 
-.search-tag-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 112px;
+.search-tag-select {
+  max-width: 118px;
   height: 28px;
-  padding: 0 10px;
+  padding: 0 24px 0 10px;
   border: 0;
   border-radius: 999px;
   color: var(--muted);
@@ -295,24 +281,18 @@ onUnmounted(() => {
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
+  outline: none;
+  appearance: auto;
 }
 
-.search-tag-trigger:hover,
-.search-tag-trigger.active {
+.search-tag-select:hover,
+.search-tag-select:focus {
   color: var(--primary);
   background: color-mix(in srgb, var(--primary), transparent 88%);
 }
 
-.search-tag-trigger span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag-arrow {
-  flex: 0 0 auto;
-  font-size: 12px;
-  opacity: 0.8;
+.search-tag-select option {
+  color: #111827;
 }
 
 .popular-section {

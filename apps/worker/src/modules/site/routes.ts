@@ -5,6 +5,8 @@ import { createId, nowIso } from '../../utils/id'
 import { fail, ok } from '../../utils/response'
 import { decryptSecret, encryptSecret } from '../../utils/secret'
 import { writeOperationLog } from '../../utils/log'
+import { parsePagination } from '../../utils/pagination'
+import { applyTableSort, normalizeReorderBody } from '../../utils/reorder'
 
 interface SiteRow {
   id: string
@@ -155,6 +157,7 @@ siteRoutes.get('/', async (c) => {
   const visible = c.req.query('visible')
   const isPinned = c.req.query('isPinned')
   const tagId = c.req.query('tagId')
+  const pagination = parsePagination((name) => c.req.query(name))
 
   const conditions: string[] = []
   const params: Array<string | number> = []
@@ -181,21 +184,54 @@ siteRoutes.get('/', async (c) => {
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-  const rows = await c.env.DB.prepare(
-    `SELECT s.id, s.category_id, c.name AS category_name, s.name, s.url, s.description, s.logo, s.account, s.password_cipher,
-            s.sort, s.is_pinned, s.visible, s.click_count, s.last_clicked_at, s.created_by, s.created_at, s.updated_at
-     FROM sites s
-     LEFT JOIN categories c ON c.id = s.category_id
-     ${where}
-     ORDER BY s.is_pinned DESC, s.sort ASC, s.created_at DESC`,
-  )
-    .bind(...params)
-    .all<SiteRow>()
+  const [rows, totalResult] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT s.id, s.category_id, c.name AS category_name, s.name, s.url, s.description, s.logo, s.account, s.password_cipher,
+              s.sort, s.is_pinned, s.visible, s.click_count, s.last_clicked_at, s.created_by, s.created_at, s.updated_at
+       FROM sites s
+       LEFT JOIN categories c ON c.id = s.category_id
+       ${where}
+       ORDER BY s.is_pinned DESC, s.sort ASC, s.created_at DESC
+       LIMIT ? OFFSET ?`,
+    ).bind(...params, pagination.pageSize, pagination.offset),
+    c.env.DB.prepare(
+      `SELECT COUNT(1) AS total
+       FROM sites s
+       ${where}`,
+    ).bind(...params),
+  ]) as [D1Result<SiteRow>, D1Result<{ total: number }>]
 
   const siteRows = rows.results || []
   const tagsBySite = await getTagsBySiteIds(c.env, siteRows.map((row) => row.id))
 
-  return c.json(ok(await Promise.all(siteRows.map((row) => toSite(row, c.env, tagsBySite.get(row.id) || [])))))
+  return c.json(ok({
+    items: await Promise.all(siteRows.map((row) => toSite(row, c.env, tagsBySite.get(row.id) || []))),
+    total: Number(totalResult.results?.[0]?.total || 0),
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+  }))
+})
+
+siteRoutes.post('/reorder', async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const items = normalizeReorderBody(body)
+  if (!items) {
+    return c.json(fail('Invalid reorder payload', 400), 400)
+  }
+
+  await applyTableSort(c.env, 'sites', items)
+
+  const currentUser = c.get('user')
+  await writeOperationLog(c.env, {
+    userId: currentUser.sub,
+    username: currentUser.username,
+    action: 'reorder',
+    module: 'site',
+    description: '调整站点排序',
+    detail: { count: items.length },
+  })
+
+  return c.json(ok(true))
 })
 
 

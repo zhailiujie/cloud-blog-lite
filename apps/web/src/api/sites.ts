@@ -1,4 +1,5 @@
 import { http, type ApiResponse } from './http'
+import { normalizePaginatedResult, type PaginatedResult } from './types'
 import type { Tag } from './tags'
 
 export interface Site {
@@ -38,9 +39,17 @@ export interface SitePayload {
 
 
 
-export async function getSites(params?: { categoryId?: string; keyword?: string; visible?: number; isPinned?: number; tagId?: string }) {
-  const response = await http.get<ApiResponse<Site[]>>('/admin/sites', { params })
-  return response.data.data || []
+export async function getSites(params?: {
+  categoryId?: string
+  keyword?: string
+  visible?: number
+  isPinned?: number
+  tagId?: string
+  page?: number
+  pageSize?: number
+}): Promise<PaginatedResult<Site>> {
+  const response = await http.get<ApiResponse<Site[] | PaginatedResult<Site>>>('/admin/sites', { params })
+  return normalizePaginatedResult(response.data.data, params?.page, params?.pageSize)
 }
 
 export async function createSite(payload: SitePayload) {
@@ -73,5 +82,10 @@ export async function exportSiteData() {
 
 export async function importSiteData(payload: unknown, dryRun = false) {
   const response = await http.post<ApiResponse<SiteImportResult>>('/admin/sites/import', payload, { params: dryRun ? { dryRun: 1 } : undefined })
+  return response.data.data
+}
+
+export async function reorderSites(items: Array<{ id: string; sort: number }>) {
+  const response = await http.post<ApiResponse<boolean>>('/admin/sites/reorder', { items })
   return response.data.data
 }

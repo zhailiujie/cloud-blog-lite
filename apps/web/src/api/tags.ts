@@ -41,3 +41,8 @@ export async function deleteTag(id: string) {
   const response = await http.delete<ApiResponse<boolean>>(`/admin/tags/${id}`)
   return response.data.data
 }
+
+export async function reorderTags(items: Array<{ id: string; sort: number }>) {
+  const response = await http.post<ApiResponse<boolean>>('/admin/tags/reorder', { items })
+  return response.data.data
+}

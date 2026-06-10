@@ -49,3 +49,8 @@ export async function deleteCategory(id: string) {
   const response = await http.delete<ApiResponse<boolean>>(`/admin/categories/${id}`)
   return response.data.data
 }
+
+export async function reorderCategories(items: Array<{ id: string; sort: number }>) {
+  const response = await http.post<ApiResponse<boolean>>('/admin/categories/reorder', { items })
+  return response.data.data
+}

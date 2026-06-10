@@ -41,3 +41,38 @@ export async function getDashboardStats() {
   const response = await http.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats')
   return response.data.data
 }
+
+export interface ClickStatsSummary {
+  totalClicks: number
+  sitesWithClicks: number
+}
+
+export interface ClickStatsCategory {
+  id: string
+  name: string
+  clickCount: number
+  siteCount: number
+}
+
+export interface ClickStatsSite {
+  id: string
+  name: string
+  url: string
+  clickCount: number
+  lastClickedAt?: string | null
+  categoryName?: string | null
+}
+
+export interface ClickStatsResult {
+  summary: ClickStatsSummary
+  categoryStats: ClickStatsCategory[]
+  items: ClickStatsSite[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export async function getClickStats(params?: { categoryId?: string; keyword?: string; page?: number; pageSize?: number }) {
+  const response = await http.get<ApiResponse<ClickStatsResult>>('/admin/dashboard/click-stats', { params })
+  return response.data.data
+}

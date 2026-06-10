@@ -10,6 +10,7 @@
       </div>
       <n-space align="center">
         <ThemeSwitch />
+        <NavAuthEntry />
       </n-space>
     </header>
 
@@ -110,6 +111,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
+import NavAuthEntry from '@/components/NavAuthEntry.vue'
 import SiteCard from '@/components/SiteCard.vue'
 import { getNavigation, type NavigationData, type PublicCategory } from '@/api/public'
 

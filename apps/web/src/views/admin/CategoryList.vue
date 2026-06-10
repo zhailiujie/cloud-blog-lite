@@ -1,9 +1,16 @@
 <template>
   <PageHeader title="分类管理" subtitle="Categories">
-    <n-button type="primary" @click="openCreate">新增分类</n-button>
+    <n-space>
+      <n-radio-group v-model:value="viewMode" size="small">
+        <n-radio-button value="list">列表</n-radio-button>
+        <n-radio-button value="tree">树形</n-radio-button>
+      </n-radio-group>
+      <n-button v-if="canEdit" @click="openSortModal">调整排序</n-button>
+      <n-button v-if="canEdit" type="primary" @click="openCreate">新增分类</n-button>
+    </n-space>
   </PageHeader>
 
-  <n-card>
+  <n-card v-if="viewMode === 'list'">
     <n-data-table
       class="desktop-table"
       :columns="columns"
@@ -25,13 +32,43 @@
         <div class="mobile-card-row"><span>父级</span><b>{{ parentName(category.parentId) }}</b></div>
         <div class="mobile-card-row"><span>排序</span><b>{{ category.sort }}</b></div>
         <div class="mobile-card-row"><span>层级</span><b>{{ category.level }}</b></div>
-        <n-space justify="end">
+        <n-space v-if="canEdit" justify="end">
           <n-button size="small" @click="openEdit(category)">编辑</n-button>
           <n-button size="small" type="error" ghost @click="confirmDelete(category)">删除</n-button>
         </n-space>
       </div>
     </div>
   </n-card>
+
+  <n-card v-else>
+    <n-empty v-if="!categoryTree.length && !loading" description="暂无分类" />
+    <div v-else class="category-tree">
+      <div
+        v-for="{ node, depth } in flatCategoryTree"
+        :key="node.data.id"
+        class="tree-row"
+        :style="{ paddingLeft: `${depth * 18 + 12}px` }"
+      >
+        <div class="tree-main">
+          <strong>{{ node.data.name }}</strong>
+          <small>{{ parentName(node.data.parentId) }} · 排序 {{ node.data.sort }}</small>
+        </div>
+        <n-space v-if="canEdit" size="small">
+          <n-button size="tiny" @click="openEdit(node.data)">编辑</n-button>
+          <n-button size="tiny" type="error" ghost @click="confirmDelete(node.data)">删除</n-button>
+        </n-space>
+      </div>
+    </div>
+  </n-card>
+
+  <DragSortModal
+    v-if="canEdit"
+    v-model:show="showSortModal"
+    title="调整分类排序"
+    :items="sortItems"
+    :saving="sortSaving"
+    @save="handleSortSave"
+  />
 
   <n-modal v-model:show="showModal" preset="card" :title="editingId ? '编辑分类' : '新增分类'" class="form-modal">
     <n-form label-placement="top">
@@ -65,15 +102,23 @@
 
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NCard, NDataTable, NForm, NFormItem, NFormItemGi, NGrid, NInput, NInputNumber, NModal, NSelect, NSpace, NSwitch, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NCard, NDataTable, NEmpty, NForm, NFormItem, NFormItemGi, NGrid, NInput, NInputNumber, NModal, NRadioButton, NRadioGroup, NSelect, NSpace, NSwitch, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
-import { createCategory, deleteCategory, getCategories, getCategoryOptions, updateCategory, type Category, type CategoryPayload } from '@/api/categories'
+import DragSortModal from '@/components/DragSortModal.vue'
+import { usePermissions } from '@/composables/usePermissions'
+import { createCategory, deleteCategory, getCategories, getCategoryOptions, reorderCategories, updateCategory, type Category, type CategoryPayload } from '@/api/categories'
+import { buildCategoryTree, flattenCategoryTree } from '@/utils/categoryTree'
+import { buildReorderPayload } from '@/utils/reorder'
 
 const message = useMessage()
 const dialog = useDialog()
+const { canEdit } = usePermissions()
 const loading = ref(false)
 const saving = ref(false)
+const sortSaving = ref(false)
 const showModal = ref(false)
+const showSortModal = ref(false)
+const viewMode = ref<'list' | 'tree'>('list')
 const editingId = ref<string | null>(null)
 const categories = ref<Category[]>([])
 const categoryOptions = ref<Category[]>([])
@@ -101,6 +146,14 @@ const form = reactive<CategoryPayload>({
   level: 1,
   visible: 1,
 })
+
+const categoryTree = computed(() => buildCategoryTree(categoryOptions.value))
+const flatCategoryTree = computed(() => flattenCategoryTree(categoryTree.value))
+const sortItems = computed(() =>
+  [...categoryOptions.value]
+    .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name))
+    .map((item) => ({ id: item.id, label: item.name, meta: parentName(item.parentId) })),
+)
 
 const parentOptions = computed(() => [
   { label: '顶级分类', value: '0' },
@@ -139,6 +192,7 @@ const columns: DataTableColumns<Category> = [
     key: 'actions',
     width: 170,
     render(row) {
+      if (!canEdit.value) return '只读'
       return h(NSpace, null, {
         default: () => [
           h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
@@ -173,6 +227,10 @@ function openEdit(row: Category) {
   form.level = row.level || 1
   form.visible = row.visible
   showModal.value = true
+}
+
+function openSortModal() {
+  showSortModal.value = true
 }
 
 async function loadCategoryOptions() {
@@ -210,10 +268,24 @@ async function handleSave() {
     }
     showModal.value = false
     await loadCategories()
-  } catch (error) {
+  } catch {
     message.error('保存失败')
   } finally {
     saving.value = false
+  }
+}
+
+async function handleSortSave(items: Array<{ id: string }>) {
+  sortSaving.value = true
+  try {
+    await reorderCategories(buildReorderPayload(items))
+    message.success('排序已保存')
+    showSortModal.value = false
+    await loadCategories()
+  } catch {
+    message.error('排序保存失败')
+  } finally {
+    sortSaving.value = false
   }
 }
 
@@ -240,3 +312,31 @@ function confirmDelete(row: Category) {
 
 onMounted(loadCategories)
 </script>
+
+<style scoped>
+.category-tree {
+  display: grid;
+  gap: 8px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.tree-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tree-main small {
+  color: var(--text-color-3);
+}
+</style>

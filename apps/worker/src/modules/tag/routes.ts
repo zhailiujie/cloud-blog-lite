@@ -5,6 +5,7 @@ import { createId, nowIso } from '../../utils/id'
 import { fail, ok } from '../../utils/response'
 import { parsePagination } from '../../utils/pagination'
 import { writeOperationLog } from '../../utils/log'
+import { applyTableSort, normalizeReorderBody } from '../../utils/reorder'
 
 interface TagRow {
   id: string
@@ -88,6 +89,28 @@ tagRoutes.get('/options', async (c) => {
   ).all<TagRow>()
 
   return c.json(ok((rows.results || []).map(toTag)))
+})
+
+tagRoutes.post('/reorder', async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const items = normalizeReorderBody(body)
+  if (!items) {
+    return c.json(fail('Invalid reorder payload', 400), 400)
+  }
+
+  await applyTableSort(c.env, 'tags', items)
+
+  const currentUser = c.get('user')
+  await writeOperationLog(c.env, {
+    userId: currentUser.sub,
+    username: currentUser.username,
+    action: 'reorder',
+    module: 'tag',
+    description: '调整标签排序',
+    detail: { count: items.length },
+  })
+
+  return c.json(ok(true))
 })
 
 tagRoutes.post('/', async (c) => {

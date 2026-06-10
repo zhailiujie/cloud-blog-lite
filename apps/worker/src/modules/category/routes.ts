@@ -4,6 +4,8 @@ import type { AuthVariables } from '../../middleware/auth'
 import { createId, nowIso } from '../../utils/id'
 import { fail, ok } from '../../utils/response'
 import { parsePagination } from '../../utils/pagination'
+import { applyTableSort, normalizeReorderBody } from '../../utils/reorder'
+import { writeOperationLog } from '../../utils/log'
 
 interface CategoryRow {
   id: string
@@ -110,6 +112,28 @@ categoryRoutes.get('/options', async (c) => {
   ).all<CategoryRow>()
 
   return c.json(ok((rows.results || []).map(toCategory)))
+})
+
+categoryRoutes.post('/reorder', async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const items = normalizeReorderBody(body)
+  if (!items) {
+    return c.json(fail('Invalid reorder payload', 400), 400)
+  }
+
+  await applyTableSort(c.env, 'categories', items)
+
+  const currentUser = c.get('user')
+  await writeOperationLog(c.env, {
+    userId: currentUser.sub,
+    username: currentUser.username,
+    action: 'reorder',
+    module: 'category',
+    description: '调整分类排序',
+    detail: { count: items.length },
+  })
+
+  return c.json(ok(true))
 })
 
 categoryRoutes.post('/', async (c) => {

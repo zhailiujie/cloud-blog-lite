@@ -89,6 +89,7 @@ const menuOptions = computed(() => {
     { label: link('分类管理', '/admin/categories'), key: 'categories' },
     { label: link('站点管理', '/admin/sites'), key: 'sites' },
     { label: link('标签管理', '/admin/tags'), key: 'tags' },
+    { label: link('点击统计', '/admin/clicks'), key: 'clicks' },
   ]
 
   if (auth.user?.role === 'admin') {

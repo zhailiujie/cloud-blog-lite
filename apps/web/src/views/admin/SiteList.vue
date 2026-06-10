@@ -1,9 +1,10 @@
 <template>
   <PageHeader title="站点管理" subtitle="Sites">
     <n-space>
-      <n-button @click="handleExportSites">导出</n-button>
-      <n-button @click="triggerImport">导入</n-button>
-      <n-button type="primary" @click="openCreate">新增站点</n-button>
+      <n-button v-if="canEdit" @click="handleExportSites">导出</n-button>
+      <n-button v-if="canEdit" @click="triggerImport">导入</n-button>
+      <n-button v-if="canEdit" @click="openSortModal">调整排序</n-button>
+      <n-button v-if="canEdit" type="primary" @click="openCreate">新增站点</n-button>
     </n-space>
   </PageHeader>
   <input ref="importInput" type="file" accept="application/json,.json" class="hidden-file-input" @change="handleImportFile" />
@@ -16,7 +17,6 @@
 
       <n-select filterable v-model:value="query.visible" clearable placeholder="显示状态" :options="visibleOptions" class="filter-select" />
       <n-select filterable v-model:value="query.isPinned" clearable placeholder="置顶状态" :options="pinnedOptions" class="filter-select" />
-      <n-button @click="loadSites">查询</n-button>
     </n-space>
   </n-card>
 
@@ -26,8 +26,11 @@
       :columns="columns"
       :data="sites"
       :loading="loading"
-      :pagination="{ pageSize: 10 }"
+      :pagination="pagination"
+      remote
       :scroll-x="1040"
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
     />
     <div class="mobile-card-list">
       <div v-for="site in sites" :key="site.id" class="mobile-data-card">
@@ -58,8 +61,10 @@
         </div>
         <n-space justify="end">
           <n-button size="small" @click="openDetail(site)">查看</n-button>
-          <n-button size="small" @click="openEdit(site)">编辑</n-button>
-          <n-button size="small" type="error" ghost @click="confirmDelete(site)">删除</n-button>
+          <template v-if="canEdit">
+            <n-button size="small" @click="openEdit(site)">编辑</n-button>
+            <n-button size="small" type="error" ghost @click="confirmDelete(site)">删除</n-button>
+          </template>
         </n-space>
       </div>
     </div>
@@ -152,20 +157,33 @@
       <n-descriptions-item label="描述">{{ selectedSite.description || '-' }}</n-descriptions-item>
     </n-descriptions>
   </n-modal>
+
+  <DragSortModal
+    v-if="canEdit"
+    v-model:show="showSortModal"
+    title="调整站点排序"
+    :items="sortItems"
+    :saving="sortSaving"
+    @save="handleSortSave"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import { NButton, NCard, NDataTable, NDescriptions, NDescriptionsItem, NForm, NFormItem, NFormItemGi, NGrid, NInput, NInputGroup, NInputNumber, NModal, NSelect, NSpace, NSwitch, NUpload, useDialog, useMessage, type DataTableColumns } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
+import DragSortModal from '@/components/DragSortModal.vue'
+import { usePermissions } from '@/composables/usePermissions'
 import { getCategoryOptions, type Category } from '@/api/categories'
-import { createSite, deleteSite, exportSiteData, getSites, importSiteData, updateSite, type Site, type SitePayload } from '@/api/sites'
+import { createSite, deleteSite, exportSiteData, getSites, importSiteData, reorderSites, updateSite, type Site, type SitePayload } from '@/api/sites'
 import { fetchFaviconToR2, uploadFile } from '@/api/upload'
 import { getSettings } from '@/api/settings'
 import { getTagOptions, type Tag } from '@/api/tags'
+import { buildReorderPayload } from '@/utils/reorder'
 
 const message = useMessage()
 const dialog = useDialog()
+const { canEdit } = usePermissions()
 const loading = ref(false)
 const saving = ref(false)
 
@@ -173,13 +191,22 @@ const fetchingFavicon = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
 const showModal = ref(false)
 const showDetailModal = ref(false)
+const showSortModal = ref(false)
+const sortSaving = ref(false)
+const sortItems = ref<Array<{ id: string; label: string; meta?: string }>>([])
 const selectedSite = ref<Site | null>(null)
 const logoLocalEnabled = ref(false)
 const editingId = ref<string | null>(null)
 const categories = ref<Category[]>([])
 const tags = ref<Tag[]>([])
 const sites = ref<Site[]>([])
-
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  itemCount: 0,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50],
+})
 
 const query = reactive({ keyword: '', categoryId: null as string | null, tagId: null as string | null, visible: null as number | null, isPinned: null as number | null })
 const form = reactive<SitePayload>({ categoryId: '', name: '', url: '', description: '', logo: '', account: '', password: '', sort: 0, isPinned: 0, visible: 1, tagIds: [] })
@@ -231,11 +258,16 @@ const columns: DataTableColumns<Site> = [
     fixed: 'right',
     render(row) {
       return h(NSpace, null, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openDetail(row) }, { default: () => '查看' }),
-          h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-          h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => confirmDelete(row) }, { default: () => '删除' }),
-        ],
+        default: () => {
+          const actions = [h(NButton, { size: 'small', onClick: () => openDetail(row) }, { default: () => '查看' })]
+          if (canEdit.value) {
+            actions.push(
+              h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
+              h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => confirmDelete(row) }, { default: () => '删除' }),
+            )
+          }
+          return actions
+        },
       })
     },
   },
@@ -369,11 +401,84 @@ async function loadTags() {
 async function loadSites() {
   loading.value = true
   try {
-    sites.value = await getSites({ keyword: query.keyword, categoryId: query.categoryId || undefined, tagId: query.tagId || undefined, visible: query.visible ?? undefined, isPinned: query.isPinned ?? undefined })
+    const result = await getSites({
+      keyword: query.keyword || undefined,
+      categoryId: query.categoryId || undefined,
+      tagId: query.tagId || undefined,
+      visible: query.visible ?? undefined,
+      isPinned: query.isPinned ?? undefined,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    })
+    sites.value = result.items
+    pagination.itemCount = result.total
+    pagination.page = result.page
+    pagination.pageSize = result.pageSize
   } catch {
     message.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
+  }
+}
+
+function handlePageChange(page: number) {
+  pagination.page = page
+  void loadSites()
+}
+
+function handlePageSizeChange(pageSize: number) {
+  pagination.pageSize = pageSize
+  pagination.page = 1
+  void loadSites()
+}
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(
+  () => ({ ...query }),
+  () => {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+      pagination.page = 1
+      void loadSites()
+    }, 300)
+  },
+  { deep: true },
+)
+
+async function openSortModal() {
+  try {
+    const result = await getSites({
+      keyword: query.keyword || undefined,
+      categoryId: query.categoryId || undefined,
+      tagId: query.tagId || undefined,
+      visible: query.visible ?? undefined,
+      isPinned: query.isPinned ?? undefined,
+      page: 1,
+      pageSize: 500,
+    })
+    sortItems.value = result.items.map((item) => ({
+      id: item.id,
+      label: item.name,
+      meta: item.categoryName || '未分类',
+    }))
+    showSortModal.value = true
+  } catch {
+    message.error('加载排序列表失败')
+  }
+}
+
+async function handleSortSave(items: Array<{ id: string }>) {
+  sortSaving.value = true
+  try {
+    await reorderSites(buildReorderPayload(items))
+    message.success('排序已保存')
+    showSortModal.value = false
+    await loadSites()
+  } catch {
+    message.error('排序保存失败')
+  } finally {
+    sortSaving.value = false
   }
 }
 

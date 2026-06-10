@@ -1,6 +1,9 @@
 <template>
   <PageHeader title="标签管理" subtitle="Tags">
-    <n-button type="primary" @click="openCreate">新增标签</n-button>
+    <n-space>
+      <n-button v-if="canEdit" @click="openSortModal">调整排序</n-button>
+      <n-button v-if="canEdit" type="primary" @click="openCreate">新增标签</n-button>
+    </n-space>
   </PageHeader>
 
   <n-card>
@@ -28,7 +31,7 @@
           <span>排序</span>
           <b>{{ tag.sort }}</b>
         </div>
-        <n-space justify="end">
+        <n-space v-if="canEdit" justify="end">
           <n-button size="small" @click="openEdit(tag)">编辑</n-button>
           <n-button size="small" type="error" ghost @click="confirmDelete(tag)">删除</n-button>
         </n-space>
@@ -57,21 +60,37 @@
       </n-space>
     </template>
   </n-modal>
+
+  <DragSortModal
+    v-if="canEdit"
+    v-model:show="showSortModal"
+    title="调整标签排序"
+    :items="sortItems"
+    :saving="sortSaving"
+    @save="handleSortSave"
+  />
 </template>
 
 <script setup lang="ts">
 import { h, onMounted, reactive, ref } from 'vue'
 import { NButton, NCard, NColorPicker, NDataTable, NForm, NFormItem, NFormItemGi, NGrid, NInput, NInputNumber, NModal, NSpace, useDialog, useMessage, type DataTableColumns, type PaginationProps } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
-import { createTag, deleteTag, getTags, updateTag, type Tag, type TagPayload } from '@/api/tags'
+import DragSortModal from '@/components/DragSortModal.vue'
+import { usePermissions } from '@/composables/usePermissions'
+import { createTag, deleteTag, getTagOptions, getTags, reorderTags, updateTag, type Tag, type TagPayload } from '@/api/tags'
+import { buildReorderPayload } from '@/utils/reorder'
 
 const message = useMessage()
 const dialog = useDialog()
+const { canEdit } = usePermissions()
 const loading = ref(false)
 const saving = ref(false)
 const showModal = ref(false)
+const showSortModal = ref(false)
+const sortSaving = ref(false)
 const editingId = ref<string | null>(null)
 const tags = ref<Tag[]>([])
+const sortItems = ref<Array<{ id: string; label: string; meta?: string }>>([])
 const form = reactive<TagPayload>({ name: '', color: '#4f46e5', sort: 0 })
 const pagination = reactive<PaginationProps>({ page: 1, pageSize: 10, itemCount: 0, showSizePicker: true, pageSizes: [10, 20, 50] })
 const rowKey = (row: Tag) => row.id
@@ -86,6 +105,7 @@ const columns: DataTableColumns<Tag> = [
     width: 160,
     fixed: 'right',
     render(row) {
+      if (!canEdit.value) return '只读'
       return h(NSpace, null, {
         default: () => [
           h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
@@ -194,6 +214,32 @@ function handlePageSizeChange(pageSize: number) {
   pagination.pageSize = pageSize
   pagination.page = 1
   loadTags()
+}
+
+async function openSortModal() {
+  try {
+    const items = await getTagOptions()
+    sortItems.value = [...items]
+      .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name))
+      .map((item) => ({ id: item.id, label: item.name, meta: `${item.siteCount || 0} 个站点` }))
+    showSortModal.value = true
+  } catch {
+    message.error('加载排序列表失败')
+  }
+}
+
+async function handleSortSave(items: Array<{ id: string }>) {
+  sortSaving.value = true
+  try {
+    await reorderTags(buildReorderPayload(items))
+    message.success('排序已保存')
+    showSortModal.value = false
+    await loadTags()
+  } catch {
+    message.error('排序保存失败')
+  } finally {
+    sortSaving.value = false
+  }
 }
 
 onMounted(loadTags)

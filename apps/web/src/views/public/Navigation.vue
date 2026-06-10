@@ -20,20 +20,15 @@
       <div class="search-card glass-panel">
         <n-input ref="searchInputRef" v-model:value="keyword" size="large" round placeholder="搜索站点、工具或资源">
           <template #prefix>🔎</template>
+          <template v-if="allTags.length" #suffix>
+            <n-dropdown trigger="click" :options="tagOptions" placement="bottom-end" @select="handleSelectTag">
+              <button class="search-tag-trigger" :class="{ active: selectedTagId }" type="button">
+                <span>{{ selectedTagName || '全部标签' }}</span>
+                <span class="tag-arrow">⌄</span>
+              </button>
+            </n-dropdown>
+          </template>
         </n-input>
-      </div>
-      <div v-if="allTags.length" class="tag-filter glass-panel">
-        <button class="tag-filter-item" :class="{ active: !selectedTagId }" @click="selectedTagId = ''">全部标签</button>
-        <button
-          v-for="tag in allTags"
-          :key="tag.id"
-          class="tag-filter-item"
-          :class="{ active: selectedTagId === tag.id }"
-          :style="{ '--tag-color': tag.color || 'var(--primary)' }"
-          @click="selectedTagId = selectedTagId === tag.id ? '' : tag.id"
-        >
-          {{ tag.name }}
-        </button>
       </div>
     </section>
 
@@ -139,6 +134,11 @@ const allTags = computed(() => {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
 })
+const tagOptions = computed(() => [
+  { label: '全部标签', key: '' },
+  ...allTags.value.map((tag) => ({ label: tag.name, key: tag.id })),
+])
+const selectedTagName = computed(() => allTags.value.find((tag) => tag.id === selectedTagId.value)?.name || '')
 
 
 /** 按关键词过滤：仅保留有匹配站点的分类 */
@@ -160,6 +160,10 @@ const filteredCategories = computed((): PublicCategory[] => {
     }))
     .filter((cat) => cat.sites.length > 0)
 })
+
+function handleSelectTag(key: string | number) {
+  selectedTagId.value = String(key)
+}
 
 /** 注册 / 注销各分类区块的 DOM ref */
 function registerRef(id: string, el: unknown) {
@@ -277,32 +281,38 @@ onUnmounted(() => {
   margin-bottom: 22px;
 }
 
-.tag-filter {
-  max-width: 760px;
-  margin: 14px auto 0;
-  padding: 8px;
-  border-radius: 999px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-}
-
-.tag-filter-item {
+.search-tag-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 112px;
+  height: 28px;
+  padding: 0 10px;
   border: 0;
-  padding: 7px 12px;
   border-radius: 999px;
-  color: var(--tag-color, var(--muted));
+  color: var(--muted);
   background: transparent;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.tag-filter-item.active,
-.tag-filter-item:hover {
-  color: var(--tag-color, var(--primary));
-  background: color-mix(in srgb, var(--tag-color, var(--primary)), transparent 86%);
+.search-tag-trigger:hover,
+.search-tag-trigger.active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+}
+
+.search-tag-trigger span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-arrow {
+  flex: 0 0 auto;
+  font-size: 12px;
+  opacity: 0.8;
 }
 
 .popular-section {

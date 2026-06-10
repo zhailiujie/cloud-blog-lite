@@ -6,7 +6,6 @@
         <div v-else class="brand-mark">Y</div>
         <div>
           <strong>{{ navigation?.settings.title || 'cloud-blog-lite' }}</strong>
-          <span>Cloudflare 网址导航</span>
         </div>
       </div>
       <n-space align="center">
@@ -80,7 +79,6 @@
           >
             <div class="section-title">
               <div>
-                <p>精选资源</p>
                 <h2>{{ category.name }}</h2>
               </div>
             </div>

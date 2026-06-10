@@ -17,16 +17,52 @@
     <section class="landing-hero">
       <!--<h1>精选<span class="hero-accent">资源</span>，一键直达</h1>-->
       <!--<p>{{ navigation?.settings.description || '精选工具与资源，分类整理，一键直达。' }}</p>-->
-      <div class="search-card glass-panel">
-        <n-input ref="searchInputRef" v-model:value="keyword" size="large" round placeholder="搜索站点、工具或资源">
+      <div class="search-card glass-panel" :class="{ 'has-tag-select': allTags.length }">
+        <n-input ref="searchInputRef" v-model:value="keyword" class="search-input" size="large" round placeholder="搜索站点、工具或资源">
           <template #prefix>🔎</template>
-          <template v-if="allTags.length" #suffix>
-            <select v-model="selectedTagId" class="search-tag-select" aria-label="选择标签" @click.stop>
-              <option value="">全部标签</option>
-              <option v-for="tag in allTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
-            </select>
-          </template>
         </n-input>
+        <n-popover
+          v-if="allTags.length"
+          v-model:show="tagMenuOpen"
+          trigger="click"
+          placement="bottom-end"
+          :show-arrow="true"
+          raw
+        >
+          <template #trigger>
+            <button
+              class="search-tag-trigger"
+              :class="{ active: selectedTagId || tagMenuOpen }"
+              type="button"
+              @click.stop
+            >
+              <span>{{ selectedTagName || '全部标签' }}</span>
+              <span class="tag-arrow" :class="{ open: tagMenuOpen }">⌄</span>
+            </button>
+          </template>
+          <div class="tag-filter-menu glass-panel">
+            <button
+              type="button"
+              class="tag-filter-menu-item"
+              :class="{ active: !selectedTagId }"
+              @click="selectTag('')"
+            >
+              <span class="tag-dot tag-dot-all"></span>
+              <span>全部标签</span>
+            </button>
+            <button
+              v-for="tag in allTags"
+              :key="tag.id"
+              type="button"
+              class="tag-filter-menu-item"
+              :class="{ active: selectedTagId === tag.id }"
+              @click="selectTag(tag.id)"
+            >
+              <span class="tag-dot" :style="{ background: tag.color || 'var(--primary)' }"></span>
+              <span>{{ tag.name }}</span>
+            </button>
+          </div>
+        </n-popover>
       </div>
     </section>
 
@@ -103,6 +139,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { NInput, NPopover } from 'naive-ui'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
 import NavAuthEntry from '@/components/NavAuthEntry.vue'
 import SiteCard from '@/components/SiteCard.vue'
@@ -110,6 +147,7 @@ import { getNavigation, type NavigationData, type PublicCategory } from '@/api/p
 
 const keyword = ref('')
 const selectedTagId = ref('')
+const tagMenuOpen = ref(false)
 const searchInputRef = ref<{ focus?: () => void } | null>(null)
 const activeCategory = ref('')
 const loading = ref(true)
@@ -132,6 +170,7 @@ const allTags = computed(() => {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
 })
+const selectedTagName = computed(() => allTags.value.find((tag) => tag.id === selectedTagId.value)?.name || '')
 
 
 /** 按关键词过滤：仅保留有匹配站点的分类 */
@@ -153,6 +192,11 @@ const filteredCategories = computed((): PublicCategory[] => {
     }))
     .filter((cat) => cat.sites.length > 0)
 })
+
+function selectTag(tagId: string) {
+  selectedTagId.value = tagId
+  tagMenuOpen.value = false
+}
 
 /** 注册 / 注销各分类区块的 DOM ref */
 function registerRef(id: string, el: unknown) {
@@ -270,29 +314,100 @@ onUnmounted(() => {
   margin-bottom: 22px;
 }
 
-.search-tag-select {
+.search-card {
+  position: relative;
+}
+
+.search-card.has-tag-select :deep(.search-input .n-input__input-el) {
+  padding-right: 118px;
+}
+
+.search-tag-trigger {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  z-index: 2;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   max-width: 118px;
   height: 28px;
-  padding: 0 24px 0 10px;
+  padding: 0 10px;
   border: 0;
   border-radius: 999px;
   color: var(--muted);
-  background: transparent;
+  background: color-mix(in srgb, var(--card), transparent 4%);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  outline: none;
-  appearance: auto;
 }
 
-.search-tag-select:hover,
-.search-tag-select:focus {
+.search-tag-trigger:hover,
+.search-tag-trigger.active {
   color: var(--primary);
   background: color-mix(in srgb, var(--primary), transparent 88%);
 }
 
-.search-tag-select option {
-  color: #111827;
+.search-tag-trigger span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-arrow {
+  flex: 0 0 auto;
+  font-size: 12px;
+  opacity: 0.8;
+  transition: transform 0.18s ease;
+}
+
+.tag-arrow.open {
+  transform: rotate(180deg);
+}
+
+.tag-filter-menu {
+  padding: 6px;
+  border-radius: 16px;
+  min-width: 168px;
+  max-width: min(280px, calc(100vw - 32px));
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.tag-filter-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.tag-filter-menu-item:hover,
+.tag-filter-menu-item.active {
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+  color: var(--primary);
+}
+
+.tag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.tag-dot-all {
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary), #06b6d4 40%));
 }
 
 .popular-section {

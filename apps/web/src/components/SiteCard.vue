@@ -8,7 +8,6 @@
       <span v-if="isPinned" class="site-badge">置顶</span>
       <h3>{{ name }}</h3>
       <p>{{ description || '暂无描述' }}</p>
-      <small v-if="clickCount" class="site-clicks">{{ clickCount }} 次访问</small>
       <div v-if="tags?.length" class="site-tags">
         <span v-for="tag in tags" :key="tag.id" class="site-tag" :style="{ '--tag-color': tag.color || 'var(--primary)' }" @click.prevent.stop="emit('tagClick', tag.id)">{{ tag.name }}</span>
       </div>
@@ -101,12 +100,6 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--primary), transparent 88%);
   font-size: 11px;
   font-weight: 700;
-}
-.site-clicks {
-  display: block;
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 11px;
 }
 
 .site-tags {
